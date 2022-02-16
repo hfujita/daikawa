@@ -85,6 +85,36 @@ mod daikin {
         message: String,
     }
 
+    pub enum Error {
+        HTTPError(curl::Error),
+        APIError(u32, APIError),
+    }
+
+    fn do_post(url: &str, body: &String) -> Result<(u32, Vec<u8>), curl::Error> {
+        let mut handle = Easy::new();
+        let mut buf: Vec<u8> = Vec::new();
+        handle.url(url).unwrap();
+        handle.post(true).unwrap();
+        let mut list = List::new();
+        list.append("Accept: application/json").unwrap();
+        list.append("Content-Type: application/json").unwrap();
+        handle.http_headers(list).unwrap();
+
+        handle.post_fields_copy(body.clone().into_bytes().as_slice()).unwrap();
+
+        let mut transfer = handle.transfer();
+        transfer.write_function(|data| {
+            buf.extend_from_slice(data);
+            Ok(data.len())
+        }).unwrap();
+        transfer.perform()?;
+        drop(transfer);
+
+        let res = handle.response_code()?;
+
+        Ok((res, buf))
+    }
+
     impl SkyPort {
         pub fn new() -> SkyPort {
             SkyPort {
@@ -93,36 +123,22 @@ mod daikin {
             }
         }
 
-        pub fn login(self: &mut SkyPort, email: &String, password: &String) -> Result<(), ()> {
-            let mut handle = Easy::new();
-            let mut buf: Vec<u8> = Vec::new();
+
+        pub fn login(self: &mut SkyPort, email: &String, password: &String) -> Result<(), Error> {
+            let body = format!("{{ \"email\": \"{}\", \"password\": \"{}\"}}", *email, *password);
             let url = "https://api.daikinskyport.com/users/auth/login";
-            handle.url(&url).unwrap();
-            handle.post(true).unwrap();
-            let mut list = List::new();
-            list.append("Accept: application/json").unwrap();
-            list.append("Content-Type: application/json").unwrap();
-            handle.http_headers(list).unwrap();
-
-            let content = format!("{{ \"email\": \"{}\", \"password\": \"{}\"}}", *email, *password);
-            handle.post_fields_copy(content.into_bytes().as_slice()).unwrap();
-
-            let mut transfer = handle.transfer();
-            transfer.write_function(|data| {
-                buf.extend_from_slice(data);
-                Ok(data.len())
-            }).unwrap();
-            transfer.perform().unwrap();
-            drop(transfer);
-
-            let res = handle.response_code().unwrap();
+            let (res, buf) = match do_post(url, &body) {
+                Ok(t) => t,
+                Err(e) => {
+                    return Err(Error::HTTPError(e));
+                }
+            };
 
             if res / 100 == 4 {
                 let err: APIError = serde_json::from_slice(&buf[..]).unwrap();
-                eprintln!("Login returned {}: {}", res, err.message);
-                return Err(());
+                return Err(Error::APIError(res, err));
             }
-            assert!(res == 200);
+            assert_eq!(res, 200);
         
             let result: LoginResult = serde_json::from_slice(&buf[..]).unwrap();
             eprintln!("access_token={}", result.accessToken);
