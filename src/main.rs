@@ -81,6 +81,12 @@ mod daikin {
     }
 
     #[derive(Debug, Deserialize, Serialize)]
+    struct DeviceEntry {
+        id: String,
+        name: String,
+    }
+
+    #[derive(Debug, Deserialize, Serialize)]
     struct APIError {
         message: String,
     }
@@ -153,6 +159,19 @@ mod daikin {
             self.refresh_token = Some(result.refreshToken);
 
             eprintln!("Login succeeded");
+
+            let (res, buf) = match access_webapi("https://api.daikinskyport.com/devices", &self.access_token, &None) {
+                Ok(t) => t,
+                Err(e) => {
+                    return Err(Error::HTTPError(e));
+                }
+            };
+
+            assert_eq!(res, 200);
+            let devlist: Vec<DeviceEntry> = serde_json::from_slice(&buf[..]).unwrap();
+            for dev in devlist.iter() {
+                eprintln!("device id={}, name={}", dev.id, dev.name);
+            }
 
             return Ok(());
         }
