@@ -183,6 +183,16 @@ mod daikin {
         let res = skyport.login(&"crisp.fujita@gmail.com".to_owned(), &"hoge".to_owned());
         assert!(res.is_err());
     }
+
+    #[test]
+    fn device_parse_test () {
+        let json = r#"
+        [{"id":"23334be2-f495-4c1a-8b60-37ef44cd783b","locationId":"718b63d9-359f-471f-96d9-0923da5773e1","name":"Main Room","model":"ONEPLUS","firmwareVersion":"2.6.5","createdDate":1639528963,"hasOwner":true,"hasWrite":true}]
+        "#;
+        let devlist: Vec<DeviceEntry> = serde_json::from_str(&json).unwrap();
+        assert!(devlist.len() == 1);
+        assert_eq!(devlist[0].name, "Main Room");
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
