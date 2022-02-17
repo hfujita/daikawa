@@ -90,17 +90,23 @@ mod daikin {
         APIError(u32, APIError),
     }
 
-    fn do_post(url: &str, body: &String) -> Result<(u32, Vec<u8>), curl::Error> {
+    fn access_webapi(url: &str, token: &Option<String>, body: &Option<String>) -> Result<(u32, Vec<u8>), curl::Error> {
         let mut handle = Easy::new();
         let mut buf: Vec<u8> = Vec::new();
         handle.url(url).unwrap();
-        handle.post(true).unwrap();
         let mut list = List::new();
         list.append("Accept: application/json").unwrap();
         list.append("Content-Type: application/json").unwrap();
+        if let Some(token) = token {
+            let auth = format!("Authorization: Bearer {}", token);
+            list.append(&auth).unwrap();
+        }
         handle.http_headers(list).unwrap();
 
-        handle.post_fields_copy(body.clone().into_bytes().as_slice()).unwrap();
+        if let Some(body) = body {
+            handle.post(true).unwrap();
+            handle.post_fields_copy(body.clone().into_bytes().as_slice()).unwrap();
+        }
 
         let mut transfer = handle.transfer();
         transfer.write_function(|data| {
@@ -127,7 +133,7 @@ mod daikin {
         pub fn login(self: &mut SkyPort, email: &String, password: &String) -> Result<(), Error> {
             let body = format!("{{ \"email\": \"{}\", \"password\": \"{}\"}}", *email, *password);
             let url = "https://api.daikinskyport.com/users/auth/login";
-            let (res, buf) = match do_post(url, &body) {
+            let (res, buf) = match access_webapi(url, &None, &Some(body)) {
                 Ok(t) => t,
                 Err(e) => {
                     return Err(Error::HTTPError(e));
