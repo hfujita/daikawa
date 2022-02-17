@@ -68,8 +68,9 @@ mod daikin {
     use curl::easy::{Easy, List};
     
     pub struct SkyPort {
-        access_token: Option<String>,
-        refresh_token: Option<String>,
+        access_token: String,
+        refresh_token: String,
+        device_id: String,
     }
 
     #[derive(Debug, Deserialize, Serialize)]
@@ -91,12 +92,13 @@ mod daikin {
         message: String,
     }
 
+    #[derive(Debug)]
     pub enum Error {
         HTTPError(curl::Error),
         APIError(u32, APIError),
     }
 
-    fn access_webapi(url: &str, token: &Option<String>, body: &Option<String>) -> Result<(u32, Vec<u8>), curl::Error> {
+    fn access_webapi(url: &str, token: Option<&String>, body: Option<&String>) -> Result<(u32, Vec<u8>), curl::Error> {
         let mut handle = Easy::new();
         let mut buf: Vec<u8> = Vec::new();
         handle.url(url).unwrap();
@@ -127,40 +129,37 @@ mod daikin {
         Ok((res, buf))
     }
 
-    impl SkyPort {
-        pub fn new() -> SkyPort {
-            SkyPort {
-                access_token: None,
-                refresh_token: None,
+    fn login(email: &String, password: &String) -> Result<SkyPort, Error> {
+        let body = format!("{{ \"email\": \"{}\", \"password\": \"{}\"}}", *email, *password);
+        let url = "https://api.daikinskyport.com/users/auth/login";
+        let (res, buf) = match access_webapi(url, None, Some(&body)) {
+            Ok(t) => t,
+            Err(e) => {
+                return Err(Error::HTTPError(e));
             }
+        };
+
+        if res / 100 == 4 {
+            let err: APIError = serde_json::from_slice(&buf[..]).unwrap();
+            return Err(Error::APIError(res, err));
         }
+        assert_eq!(res, 200);
 
+        let result: LoginResult = serde_json::from_slice(&buf[..]).unwrap();
 
-        pub fn login(self: &mut SkyPort, email: &String, password: &String) -> Result<(), Error> {
-            let body = format!("{{ \"email\": \"{}\", \"password\": \"{}\"}}", *email, *password);
-            let url = "https://api.daikinskyport.com/users/auth/login";
-            let (res, buf) = match access_webapi(url, &None, &Some(body)) {
-                Ok(t) => t,
-                Err(e) => {
-                    return Err(Error::HTTPError(e));
-                }
-            };
+        let skyport = SkyPort {
+            access_token: result.accessToken,
+            refresh_token: result.refreshToken,
+            device_id: String::new(),
+        };
 
-            if res / 100 == 4 {
-                let err: APIError = serde_json::from_slice(&buf[..]).unwrap();
-                return Err(Error::APIError(res, err));
-            }
-            assert_eq!(res, 200);
-        
-            let result: LoginResult = serde_json::from_slice(&buf[..]).unwrap();
-            eprintln!("access_token={}", result.accessToken);
-            eprintln!("refresh_token={}", result.refreshToken);
-            self.access_token = Some(result.accessToken);
-            self.refresh_token = Some(result.refreshToken);
+        return Ok(skyport);
+    }
 
-            eprintln!("Login succeeded");
-
-            let (res, buf) = match access_webapi("https://api.daikinskyport.com/devices", &self.access_token, &None) {
+    impl SkyPort {
+        pub fn new(email: &String, password: &String) -> Result<SkyPort, Error> {
+            let mut skyport = login(email, password)?;
+            let (res, buf) = match access_webapi("https://api.daikinskyport.com/devices", Some(&skyport.access_token), None) {
                 Ok(t) => t,
                 Err(e) => {
                     return Err(Error::HTTPError(e));
@@ -169,18 +168,22 @@ mod daikin {
 
             assert_eq!(res, 200);
             let devlist: Vec<DeviceEntry> = serde_json::from_slice(&buf[..]).unwrap();
+            if devlist.len() == 0 {
+                return Err(Error::APIError(404, APIError { message: "No device found".to_string() }));
+            }
             for dev in devlist.iter() {
                 eprintln!("device id={}, name={}", dev.id, dev.name);
             }
+            eprintln!("Using \"{}\" as a Daikin device", devlist[0].name);
+            skyport.device_id = devlist[0].id.clone();
 
-            return Ok(());
+            return Ok(skyport);
         }
     }
 
     #[test]
-    fn login_test() {
-        let mut skyport = SkyPort::new();
-        let res = skyport.login(&"crisp.fujita@gmail.com".to_owned(), &"hoge".to_owned());
+    fn login_failure_test() {
+        let mut res = SkyPort::new(&"crisp.fujita@gmail.com".to_owned(), &"hoge".to_owned());
         assert!(res.is_err());
     }
 
@@ -527,9 +530,7 @@ mod test {
     #[test]
     fn daikin_test() {
         let config = read_config("config.json").unwrap();
-        let mut daikin = daikin::SkyPort::new();
-        let res = daikin.login(&config.daikin_email, &config.daikin_password);
-        assert!(res.is_ok());
+        let mut daikin = daikin::SkyPort::new(&config.daikin_email, &config.daikin_password).unwrap();
     }
 }
 
