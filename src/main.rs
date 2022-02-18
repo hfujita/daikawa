@@ -77,7 +77,7 @@ mod daikin {
     struct LoginResult {
         accessToken: String,
         accessTokenExpiresIn: u64,
-        refreshToken: String,
+        refreshToken: Option<String>,
         tokenType: String,
     }
 
@@ -146,10 +146,13 @@ mod daikin {
         assert_eq!(res, 200);
 
         let result: LoginResult = serde_json::from_slice(&buf[..]).unwrap();
+        if result.refreshToken.is_none() {
+            return Err(Error::APIError(404 /* TODO */, "Refresh token was not returned".to_string()))
+        }
 
         let skyport = SkyPort {
             access_token: result.accessToken,
-            refresh_token: result.refreshToken,
+            refresh_token: result.refreshToken.unwrap(),
             device_id: String::new(),
         };
 
