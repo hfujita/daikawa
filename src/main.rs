@@ -95,7 +95,7 @@ mod daikin {
     #[derive(Debug)]
     pub enum Error {
         HTTPError(curl::Error),
-        APIError(u32, APIError),
+        APIError(u32, String),
     }
 
     fn access_webapi(url: &str, token: Option<&String>, body: Option<&String>) -> Result<(u32, Vec<u8>), curl::Error> {
@@ -141,7 +141,7 @@ mod daikin {
 
         if res / 100 == 4 {
             let err: APIError = serde_json::from_slice(&buf[..]).unwrap();
-            return Err(Error::APIError(res, err));
+            return Err(Error::APIError(res, err.message));
         }
         assert_eq!(res, 200);
 
@@ -169,7 +169,7 @@ mod daikin {
             assert_eq!(res, 200);
             let devlist: Vec<DeviceEntry> = serde_json::from_slice(&buf[..]).unwrap();
             if devlist.len() == 0 {
-                return Err(Error::APIError(404, APIError { message: "No device found".to_string() }));
+                return Err(Error::APIError(404, "No device found".to_string()));
             }
             for dev in devlist.iter() {
                 eprintln!("device id={}, name={}", dev.id, dev.name);
