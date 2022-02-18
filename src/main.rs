@@ -68,9 +68,11 @@ mod daikin {
     use curl::easy::{Easy, List};
     
     pub struct SkyPort {
+        email: String,
         access_token: String,
         refresh_token: String,
         device_id: String,
+        device_data: DeviceData,
     }
 
     #[derive(Debug, Deserialize, Serialize)]
@@ -85,6 +87,16 @@ mod daikin {
     struct DeviceEntry {
         id: String,
         name: String,
+    }
+
+    #[derive(Debug, Deserialize, Serialize, Default)]
+    struct DeviceData {
+        #[serde(rename = "cspHome")]
+        csp_home: f64,
+        #[serde(rename = "hspHome")]
+        hsp_home: f64,
+        #[serde(rename = "tempIndoor")]
+        temp_indoor: f64,
     }
 
     #[derive(Debug, Deserialize, Serialize)]
@@ -151,9 +163,11 @@ mod daikin {
         }
 
         let skyport = SkyPort {
+            email: email.clone(),
             access_token: result.accessToken,
             refresh_token: result.refreshToken.unwrap(),
             device_id: String::new(),
+            device_data: DeviceData { ..Default::default() },
         };
 
         return Ok(skyport);
@@ -180,7 +194,51 @@ mod daikin {
             eprintln!("Using \"{}\" as a Daikin device", devlist[0].name);
             skyport.device_id = devlist[0].id.clone();
 
+            skyport.do_sync()?;
+
             return Ok(skyport);
+        }
+
+        fn refresh_token(self: &mut SkyPort) -> Result<(), Error> {
+            let url = "https://api.daikinskyport.com/users/auth/token";
+            let body = format!("{{ \"email\": \"{}\", \"refreshToken\": \"{}\"}}", self.email, self.refresh_token);
+            let (res, buf) = match access_webapi(url, None, Some(&body)) {
+                Ok(t) => t,
+                Err(e) => {
+                    return Err(Error::HTTPError(e));
+                }
+            };
+            assert_eq!(res, 200);
+
+            let result: LoginResult = serde_json::from_slice(&buf[..]).unwrap();
+            self.access_token = result.accessToken;
+
+            return Ok(());
+        }
+
+        fn do_sync(self: &mut SkyPort) -> Result<(), Error> {
+            let url = format!("https://api.daikinskyport.com/deviceData/{}", self.device_id);
+            let (res, buf) = match access_webapi(&url, Some(&self.access_token), None) {
+                Ok(t) => t,
+                Err(e) => {
+                    return Err(Error::HTTPError(e));
+                }
+            };
+            assert_eq!(res, 200);
+
+            let data: DeviceData = serde_json::from_slice(&buf[..]).unwrap();
+            self.device_data = data;
+
+            return Ok(());
+        }
+
+        pub fn sync(self: &mut SkyPort) -> Result<(), Error> {
+            self.refresh_token()?;
+            self.do_sync()
+        }
+
+        pub fn get_temp(self: &mut SkyPort) -> f64 {
+            return self.device_data.temp_indoor;
         }
     }
 
