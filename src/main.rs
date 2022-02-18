@@ -592,6 +592,9 @@ mod test {
     fn daikin_test() {
         let config = read_config("config.json").unwrap();
         let mut daikin = daikin::SkyPort::new(&config.daikin_email, &config.daikin_password).unwrap();
+        println!("temp={}", daikin.get_temp());
+        daikin.sync().unwrap();
+        println!("temp={}", daikin.get_temp());
     }
 }
 
