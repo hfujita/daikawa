@@ -617,6 +617,17 @@ mod test {
         daikin.sync().unwrap();
         println!("temp={}", daikin.get_temp());
     }
+
+    #[test]
+    fn setpoint_calc() {
+        let (c, h) = calc_new_setpoints(21.0, 26.0, 23.5, 21.0, 23.5);
+        assert!((c - 26.0).abs() < 0.01);
+        assert!((h - 21.0).abs() < 0.01);
+
+        let (c, h) = calc_new_setpoints(21.0, 26.0, 24.5, 21.5, 23.5);
+        assert!((c - 26.0).abs() < 0.01);
+        assert!((h - 20.5).abs() < 0.01);
+    }
 }
 
 fn read_config(config_fn: &str) -> Result<Config, String> {
