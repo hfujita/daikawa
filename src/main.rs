@@ -261,6 +261,11 @@ mod daikin {
         pub fn get_cool_setpoint(self: &SkyPort) -> f64 {
             return self.device_data.csp_home;
         }
+
+        pub fn set_setpoints(&mut self, heat: f64, cool: f64) -> Result<(), Error> {
+            println!("Setting setpoints: heat={}, cool={} (DRY RUN)", heat, cool);
+            return Ok(());
+        }
     }
 
     #[test]
