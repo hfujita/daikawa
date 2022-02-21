@@ -680,11 +680,15 @@ fn main() {
     let range = parse_time_range("21:00", "07:00");
     let mut controlling = false;
 
-    loop {
-        /* TODO: handle error */
-        let temp = awair::read_average_temp(&config.awair_device_type, config.awair_device_id, &config.awair_token).unwrap();
-        println!("{}", temp);
+    let mut skyport = match daikin::SkyPort::new(&config.daikin_email, &config.daikin_password) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("Failed to connect to Daikin Skyport: {}", e);
+            std::process::exit(1);
+        }
+    };
 
+    loop {
         let now_dt = Local::now().naive_local();
         let now_t = now_dt.time();
         let next = next_transition(&now_t, &range) + 15;
@@ -696,8 +700,20 @@ fn main() {
 
         if controlling {
             /* control Daikin */
-            if (temp - config.target_temp).abs() > 0.5 {
+            if let Err(e) = skyport.sync() {
+                eprintln!("Daikin Skyport sync failed: {}", e);
+            } else {
+                /* TODO: handle error */
+                let atemp = awair::read_average_temp(&config.awair_device_type, config.awair_device_id, &config.awair_token).unwrap();
+                let dtemp = skyport.get_temp();
+                let hdist = (skyport.get_heat_setpoint() - dtemp).abs();
+                let cdist = (skyport.get_cool_setpoint() - dtemp).abs();
+                let hsp = skyport.get_heat_setpoint();
+                let csp = skyport.get_cool_setpoint();
+                let (new_csp, new_hsp) = calc_new_setpoints(hsp, csp, atemp, dtemp, config.target_temp);
 
+                println!("Target temp={}, Awair temp={}, Daikin temp={}, Daikin sp=({}, {}), new Daikin sp=({}, {})",
+                    config.target_temp, atemp, dtemp, csp, hsp, new_csp, new_hsp);
             }
         }
 
