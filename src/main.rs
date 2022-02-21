@@ -282,8 +282,18 @@ mod daikin {
             return self.device_data.csp_home;
         }
 
-        pub fn set_setpoints(&mut self, heat: f64, cool: f64) -> Result<(), Error> {
-            println!("Setting setpoints: heat={}, cool={} (DRY RUN)", heat, cool);
+        pub fn set_setpoints(&mut self, heat: f64, cool: f64, duration: u32) -> Result<(), Error> {
+            println!("Setting setpoints: heat={}, cool={}", heat, cool);
+            let url = format!("https://api.daikinskyport.com/deviceData/{}", self.device_id);
+            let body = format!("{{\"hspHome\": {}, \"cspHome\": {}, \"schedOverride\": 1, \"schedOverrideDuration\": {}}}",
+                heat, cool, duration);
+            let (res, buf) = match access_webapi(&url, HTTPMethod::PUT, Some(&self.access_token), Some(&body)) {
+                Ok(t) => t,
+                Err(e) => {
+                    return Err(Error::HTTPError(e));
+                }
+            };
+            assert_eq!(res, 200);
             return Ok(());
         }
     }
@@ -641,6 +651,7 @@ mod test {
         println!("temp={}", daikin.get_temp());
         daikin.sync().unwrap();
         println!("temp={}", daikin.get_temp());
+        daikin.set_setpoints(21.0, 26.0, 1).unwrap();
     }
 
     #[test]
@@ -701,6 +712,7 @@ fn main() {
             std::process::exit(1);
         }
     };
+    let loop_interval_min = 60;
 
     let range = parse_time_range("21:00", "07:00");
     let mut controlling = false;
@@ -740,13 +752,13 @@ fn main() {
                 println!("Target temp={}, Awair temp={}, Daikin temp={}, Daikin sp=({}, {}), new Daikin sp=({}, {})",
                     config.target_temp, atemp, dtemp, hsp, csp, new_hsp, new_csp);
 
-                if let Err(e) = skyport.set_setpoints(new_hsp, new_csp) {
+                if let Err(e) = skyport.set_setpoints(new_hsp, new_csp, loop_interval_min) {
                     eprintln!("Failed to set setpoints: {}", e);
                 }
             }
         }
 
-        let sleep_sec = std::cmp::min(next, 10);
+        let sleep_sec = std::cmp::min(next, loop_interval_min as i64 * 60);
         println!("{} sleeping for {} seconds ({} minutes until next transition)", now_t, sleep_sec, next / 60);
         let dur = std::time::Duration::from_secs(sleep_sec.try_into().unwrap());
         std::thread::sleep(dur);
