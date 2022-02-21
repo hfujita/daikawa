@@ -123,7 +123,13 @@ mod daikin {
         }
     }
 
-    fn access_webapi(url: &str, token: Option<&String>, body: Option<&String>) -> Result<(u32, Vec<u8>), curl::Error> {
+    enum HTTPMethod {
+        GET,
+        POST,
+        PUT,
+    }
+
+    fn access_webapi(url: &str, method: HTTPMethod, token: Option<&String>, body: Option<&String>) -> Result<(u32, Vec<u8>), curl::Error> {
         let mut handle = Easy::new();
         let mut buf: Vec<u8> = Vec::new();
         handle.url(url).unwrap();
@@ -136,9 +142,12 @@ mod daikin {
         }
         handle.http_headers(list).unwrap();
 
-        if let Some(body) = body {
-            handle.post(true).unwrap();
-            handle.post_fields_copy(body.clone().into_bytes().as_slice()).unwrap();
+        match method {
+            HTTPMethod::POST => {
+                handle.post(true).unwrap();
+                handle.post_fields_copy(body.unwrap().clone().into_bytes().as_slice()).unwrap();
+            },
+            _ => ()
         }
 
         let mut transfer = handle.transfer();
@@ -157,7 +166,7 @@ mod daikin {
     fn login(email: &String, password: &String) -> Result<SkyPort, Error> {
         let body = format!("{{ \"email\": \"{}\", \"password\": \"{}\"}}", *email, *password);
         let url = "https://api.daikinskyport.com/users/auth/login";
-        let (res, buf) = match access_webapi(url, None, Some(&body)) {
+        let (res, buf) = match access_webapi(url, HTTPMethod::POST, None, Some(&body)) {
             Ok(t) => t,
             Err(e) => {
                 return Err(Error::HTTPError(e));
@@ -189,7 +198,7 @@ mod daikin {
     impl SkyPort {
         pub fn new(email: &String, password: &String) -> Result<SkyPort, Error> {
             let mut skyport = login(email, password)?;
-            let (res, buf) = match access_webapi("https://api.daikinskyport.com/devices", Some(&skyport.access_token), None) {
+            let (res, buf) = match access_webapi("https://api.daikinskyport.com/devices", HTTPMethod::GET, Some(&skyport.access_token), None) {
                 Ok(t) => t,
                 Err(e) => {
                     return Err(Error::HTTPError(e));
@@ -215,7 +224,7 @@ mod daikin {
         fn refresh_token(self: &mut SkyPort) -> Result<(), Error> {
             let url = "https://api.daikinskyport.com/users/auth/token";
             let body = format!("{{ \"email\": \"{}\", \"refreshToken\": \"{}\"}}", self.email, self.refresh_token);
-            let (res, buf) = match access_webapi(url, None, Some(&body)) {
+            let (res, buf) = match access_webapi(url, HTTPMethod::POST, None, Some(&body)) {
                 Ok(t) => t,
                 Err(e) => {
                     return Err(Error::HTTPError(e));
@@ -231,7 +240,7 @@ mod daikin {
 
         fn do_sync(self: &mut SkyPort) -> Result<(), Error> {
             let url = format!("https://api.daikinskyport.com/deviceData/{}", self.device_id);
-            let (res, buf) = match access_webapi(&url, Some(&self.access_token), None) {
+            let (res, buf) = match access_webapi(&url, HTTPMethod::GET, Some(&self.access_token), None) {
                 Ok(t) => t,
                 Err(e) => {
                     return Err(Error::HTTPError(e));
