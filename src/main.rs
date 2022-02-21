@@ -110,6 +110,19 @@ mod daikin {
         APIError(u32, String),
     }
 
+    impl std::fmt::Display for Error {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                Error::APIError(_, m) => {
+                    return write!(f, "{}", m);
+                },
+                Error::HTTPError(e) => {
+                    return write!(f, "{}", e.description());
+                },
+            };
+        }
+    }
+
     fn access_webapi(url: &str, token: Option<&String>, body: Option<&String>) -> Result<(u32, Vec<u8>), curl::Error> {
         let mut handle = Easy::new();
         let mut buf: Vec<u8> = Vec::new();
