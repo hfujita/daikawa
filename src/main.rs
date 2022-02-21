@@ -719,6 +719,10 @@ fn main() {
 
                 println!("Target temp={}, Awair temp={}, Daikin temp={}, Daikin sp=({}, {}), new Daikin sp=({}, {})",
                     config.target_temp, atemp, dtemp, hsp, csp, new_hsp, new_csp);
+
+                if let Err(e) = skyport.set_setpoints(new_hsp, new_csp) {
+                    eprintln!("Failed to set setpoints: {}", e);
+                }
             }
         }
 
