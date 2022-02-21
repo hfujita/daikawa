@@ -636,6 +636,27 @@ fn read_config(config_fn: &str) -> Result<Config, String> {
     Ok(config)
 }
 
+/**
+ * returns (new_heat_setpoint, new_cool_setpoint)
+ */
+fn calc_new_setpoints(hsp: f64, csp: f64, atemp: f64, dtemp: f64, target: f64) -> (f64, f64) {
+    let hdist = (hsp - dtemp).abs();
+    let cdist = (csp - dtemp).abs();
+    let dsp = if hdist < cdist {
+        hsp
+    } else {
+        csp
+    };
+
+    let diff = atemp - dtemp;
+    let new_sp = target - diff;
+    if (new_sp - csp).abs() < (new_sp - hsp).abs() {
+        (hsp, new_sp)
+    } else {
+        (csp, new_sp)
+    }
+}
+
 fn main() {
     let config = match read_config("config.json") {
         Ok(c) => c,
