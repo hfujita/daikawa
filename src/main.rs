@@ -713,7 +713,7 @@ fn main() {
                 let (new_csp, new_hsp) = calc_new_setpoints(hsp, csp, atemp, dtemp, config.target_temp);
 
                 println!("Target temp={}, Awair temp={}, Daikin temp={}, Daikin sp=({}, {}), new Daikin sp=({}, {})",
-                    config.target_temp, atemp, dtemp, csp, hsp, new_csp, new_hsp);
+                    config.target_temp, atemp, dtemp, hsp, csp, new_hsp, new_csp);
             }
         }
 
