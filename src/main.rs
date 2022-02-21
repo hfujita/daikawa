@@ -250,8 +250,16 @@ mod daikin {
             self.do_sync()
         }
 
-        pub fn get_temp(self: &mut SkyPort) -> f64 {
+        pub fn get_temp(self: &SkyPort) -> f64 {
             return self.device_data.temp_indoor;
+        }
+
+        pub fn get_heat_setpoint(self: &SkyPort) -> f64 {
+            return self.device_data.hsp_home;
+        }
+
+        pub fn get_cool_setpoint(self: &SkyPort) -> f64 {
+            return self.device_data.csp_home;
         }
     }
 
