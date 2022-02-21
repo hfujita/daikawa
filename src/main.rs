@@ -131,7 +131,7 @@ mod daikin {
 
     fn access_webapi(url: &str, method: HTTPMethod, token: Option<&String>, body: Option<&String>) -> Result<(u32, Vec<u8>), curl::Error> {
         let mut handle = Easy::new();
-        let mut buf: Vec<u8> = Vec::new();
+        let mut down_buf: Vec<u8> = Vec::new();
         handle.url(url).unwrap();
         let mut list = List::new();
         list.append("Accept: application/json").unwrap();
@@ -147,20 +147,31 @@ mod daikin {
                 handle.post(true).unwrap();
                 handle.post_fields_copy(body.unwrap().clone().into_bytes().as_slice()).unwrap();
             },
+            HTTPMethod::PUT => {
+                let up_buf = body.unwrap().as_bytes();
+                handle.upload(true).unwrap();
+                handle.in_filesize(up_buf.len() as u64).unwrap();
+            },
             _ => ()
         }
 
         let mut transfer = handle.transfer();
         transfer.write_function(|data| {
-            buf.extend_from_slice(data);
+            down_buf.extend_from_slice(data);
             Ok(data.len())
+        }).unwrap();
+        transfer.read_function(|into| {
+            let up_buf = body.unwrap().as_bytes();
+            let len = up_buf.len() as usize;
+            into[0..len].clone_from_slice(up_buf);
+            Ok(len)
         }).unwrap();
         transfer.perform()?;
         drop(transfer);
 
         let res = handle.response_code()?;
 
-        Ok((res, buf))
+        Ok((res, down_buf))
     }
 
     fn login(email: &String, password: &String) -> Result<SkyPort, Error> {
