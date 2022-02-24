@@ -323,7 +323,6 @@ pub struct Config {
     awair_device_id: u64,
     #[serde(rename = "awair.token")]
     awair_token: String,
-    #[serde(rename = "targetTemp")]
     target_temp: f64,
     #[serde(rename = "daikin.email")]
     daikin_email: String,
@@ -633,7 +632,7 @@ mod test {
             "awair.deviceType": "awair",
             "awair.deviceId": 0,
             "awair.token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiRFVNTVktSE9CQllJU1QifQ.hzjhIpGljqCZ8vCrOr89POy_ENDPYQXsnzGslP01krI",
-            "targetTemp": 23.5,
+            "target_temp": 23.5,
             "daikin.email": "daikin@example.com",
             "daikin.password": "secret"
         }
