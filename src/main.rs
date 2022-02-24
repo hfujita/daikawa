@@ -324,6 +324,8 @@ pub struct Config {
     #[serde(rename = "awair.token")]
     awair_token: String,
     target_temp: f64,
+    control_start: String,
+    control_end: String,
     #[serde(rename = "daikin.email")]
     daikin_email: String,
     #[serde(rename = "daikin.password")]
@@ -633,6 +635,8 @@ mod test {
             "awair.deviceId": 0,
             "awair.token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiRFVNTVktSE9CQllJU1QifQ.hzjhIpGljqCZ8vCrOr89POy_ENDPYQXsnzGslP01krI",
             "target_temp": 23.5,
+            "control_start": "21:00",
+            "control_end": "07:00",
             "daikin.email": "daikin@example.com",
             "daikin.password": "secret"
         }
@@ -713,7 +717,7 @@ fn main() {
     };
     let loop_interval_min = 60;
 
-    let range = parse_time_range("21:00", "07:00");
+    let range = parse_time_range(&config.control_start, &config.control_end);
     let mut controlling = false;
 
     let mut skyport = match daikin::SkyPort::new(&config.daikin_email, &config.daikin_password) {
