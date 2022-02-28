@@ -77,10 +77,14 @@ mod daikin {
 
     #[derive(Debug, Deserialize, Serialize)]
     struct LoginResult {
-        accessToken: String,
-        accessTokenExpiresIn: u64,
-        refreshToken: Option<String>,
-        tokenType: String,
+        #[serde(rename = "accessToken")]
+        access_token: String,
+        #[serde(rename = "accessTokenExpiresIn")]
+        access_token_expires_in: u64,
+        #[serde(rename = "refreshToken")]
+        refresh_token: Option<String>,
+        #[serde(rename = "tokenType")]
+        token_type: String,
     }
 
     #[derive(Debug, Deserialize, Serialize)]
@@ -191,14 +195,14 @@ mod daikin {
         assert_eq!(res, 200);
 
         let result: LoginResult = serde_json::from_slice(&buf[..]).unwrap();
-        if result.refreshToken.is_none() {
+        if result.refresh_token.is_none() {
             return Err(Error::APIError(404 /* TODO */, "Refresh token was not returned".to_string()))
         }
 
         let skyport = SkyPort {
             email: email.clone(),
-            access_token: result.accessToken,
-            refresh_token: result.refreshToken.unwrap(),
+            access_token: result.access_token,
+            refresh_token: result.refresh_token.unwrap(),
             device_id: String::new(),
             device_data: DeviceData { ..Default::default() },
         };
@@ -244,7 +248,7 @@ mod daikin {
             assert_eq!(res, 200);
 
             let result: LoginResult = serde_json::from_slice(&buf[..]).unwrap();
-            self.access_token = result.accessToken;
+            self.access_token = result.access_token;
 
             return Ok(());
         }
