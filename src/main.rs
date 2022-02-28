@@ -291,7 +291,7 @@ mod daikin {
             let url = format!("https://api.daikinskyport.com/deviceData/{}", self.device_id);
             let body = format!("{{\"hspHome\": {}, \"cspHome\": {}, \"schedOverride\": 1, \"schedOverrideDuration\": {}}}",
                 heat, cool, duration);
-            let (res, buf) = match access_webapi(&url, HTTPMethod::PUT, Some(&self.access_token), Some(&body)) {
+            let (res, _) = match access_webapi(&url, HTTPMethod::PUT, Some(&self.access_token), Some(&body)) {
                 Ok(t) => t,
                 Err(e) => {
                     return Err(Error::HTTPError(e));
@@ -694,14 +694,6 @@ fn read_config(config_fn: &str) -> Result<Config, String> {
  * returns (new_heat_setpoint, new_cool_setpoint)
  */
 fn calc_new_setpoints(hsp: f64, csp: f64, atemp: f64, dtemp: f64, target: f64) -> (f64, f64) {
-    let hdist = (hsp - dtemp).abs();
-    let cdist = (csp - dtemp).abs();
-    let dsp = if hdist < cdist {
-        hsp
-    } else {
-        csp
-    };
-
     let diff = atemp - dtemp;
     let new_sp = target - diff;
     if (new_sp - csp).abs() < (new_sp - hsp).abs() {
@@ -750,8 +742,6 @@ fn main() {
                 /* TODO: handle error */
                 let atemp = awair::read_average_temp(&config.awair_device_type, config.awair_device_id, &config.awair_token).unwrap();
                 let dtemp = skyport.get_temp();
-                let hdist = (skyport.get_heat_setpoint() - dtemp).abs();
-                let cdist = (skyport.get_cool_setpoint() - dtemp).abs();
                 let hsp = skyport.get_heat_setpoint();
                 let csp = skyport.get_cool_setpoint();
                 let (new_csp, new_hsp) = calc_new_setpoints(hsp, csp, atemp, dtemp, config.target_temp);
