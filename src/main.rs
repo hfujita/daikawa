@@ -261,7 +261,10 @@ mod daikin {
                     return Err(Error::HTTPError(e));
                 }
             };
-            assert_eq!(res, 200);
+
+            if res != 200 {
+                return Err(Error::APIError(res, String::from_utf8(buf).unwrap()));
+            }
 
             let data: DeviceData = serde_json::from_slice(&buf[..]).unwrap();
             self.device_data = data;
@@ -270,8 +273,15 @@ mod daikin {
         }
 
         pub fn sync(self: &mut SkyPort) -> Result<(), Error> {
-            self.refresh_token()?;
-            self.do_sync()
+            if let Err(e) = self.do_sync() {
+                if let Error::APIError(401, _) = e {
+                    self.refresh_token()?;
+                    return self.do_sync();
+                } else {
+                    return Err(e);
+                }
+            }
+            Ok(())
         }
 
         pub fn get_temp(self: &SkyPort) -> f64 {
@@ -286,19 +296,35 @@ mod daikin {
             return self.device_data.csp_home;
         }
 
-        pub fn set_setpoints(&mut self, heat: f64, cool: f64, duration: u32) -> Result<(), Error> {
+
+
+        fn do_set_setpoints(&self, heat: f64, cool: f64, duration: u32) -> Result<(), Error> {
             println!("Setting setpoints: heat={}, cool={}", heat, cool);
             let url = format!("https://api.daikinskyport.com/deviceData/{}", self.device_id);
             let body = format!("{{\"hspHome\": {:.1}, \"cspHome\": {:.1}, \"schedOverride\": 1, \"schedOverrideDuration\": {}}}",
                 heat, cool, duration);
-            let (res, _) = match access_webapi(&url, HTTPMethod::PUT, Some(&self.access_token), Some(&body)) {
+            let (res, buf) = match access_webapi(&url, HTTPMethod::PUT, Some(&self.access_token), Some(&body)) {
                 Ok(t) => t,
                 Err(e) => {
                     return Err(Error::HTTPError(e));
                 }
             };
-            assert_eq!(res, 200);
+            if res != 200 {
+                return Err(Error::APIError(res, String::from_utf8(buf).unwrap()));
+            }
             return Ok(());
+        }
+
+        pub fn set_setpoints(&mut self, heat: f64, cool: f64, duration: u32) -> Result<(), Error> {
+            if let Err(e) = self.do_set_setpoints(heat, cool, duration) {
+                if let Error::APIError(401, _) = e {
+                    self.refresh_token()?;
+                    return self.do_set_setpoints(heat, cool, duration);
+                } else {
+                    return Err(e);
+                }
+            }
+            Ok(())
         }
     }
 
