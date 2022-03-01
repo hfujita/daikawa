@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc, Local, TimeZone, NaiveTime, Duration};
+use chrono::{Local, NaiveTime, Duration};
 
 mod webapi {
     use curl::easy::{Easy, List};
@@ -58,7 +58,6 @@ mod webapi {
 
 mod awair {
     use serde::{Deserialize, Serialize};
-    use curl::easy::{Easy, List};
     use super::webapi;
 
     #[derive(Debug, Deserialize, Serialize)]
