@@ -289,7 +289,7 @@ mod daikin {
         pub fn set_setpoints(&mut self, heat: f64, cool: f64, duration: u32) -> Result<(), Error> {
             println!("Setting setpoints: heat={}, cool={}", heat, cool);
             let url = format!("https://api.daikinskyport.com/deviceData/{}", self.device_id);
-            let body = format!("{{\"hspHome\": {}, \"cspHome\": {}, \"schedOverride\": 1, \"schedOverrideDuration\": {}}}",
+            let body = format!("{{\"hspHome\": {:.1}, \"cspHome\": {:.1}, \"schedOverride\": 1, \"schedOverrideDuration\": {}}}",
                 heat, cool, duration);
             let (res, _) = match access_webapi(&url, HTTPMethod::PUT, Some(&self.access_token), Some(&body)) {
                 Ok(t) => t,
@@ -746,7 +746,7 @@ fn main() {
                 let csp = skyport.get_cool_setpoint();
                 let (new_csp, new_hsp) = calc_new_setpoints(hsp, csp, atemp, dtemp, config.target_temp);
 
-                println!("Target temp={}, Awair temp={}, Daikin temp={}, Daikin sp=({}, {}), new Daikin sp=({}, {})",
+                println!("Target temp={}, Awair temp={}, Daikin temp={}, Daikin cur sp=({}, {}), new Daikin sp=({:.1}, {:.1})",
                     config.target_temp, atemp, dtemp, hsp, csp, new_hsp, new_csp);
 
                 if let Err(e) = skyport.set_setpoints(new_hsp, new_csp, loop_interval_min) {
