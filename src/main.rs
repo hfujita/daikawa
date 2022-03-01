@@ -1,6 +1,61 @@
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc, Local, TimeZone, NaiveTime, Duration};
 
+mod webapi {
+    use curl::easy::{Easy, List};
+
+    pub enum HTTPMethod {
+        GET,
+        POST,
+        PUT,
+    }
+
+    pub fn access(url: &str, method: HTTPMethod, token: Option<&String>, body: Option<&String>) -> Result<(u32, Vec<u8>), curl::Error> {
+        let mut handle = Easy::new();
+        let mut down_buf: Vec<u8> = Vec::new();
+        handle.url(url).unwrap();
+        let mut list = List::new();
+        list.append("Accept: application/json").unwrap();
+        list.append("Content-Type: application/json").unwrap();
+        if let Some(token) = token {
+            let auth = format!("Authorization: Bearer {}", token);
+            list.append(&auth).unwrap();
+        }
+        handle.http_headers(list).unwrap();
+
+        match method {
+            HTTPMethod::POST => {
+                handle.post(true).unwrap();
+                handle.post_fields_copy(body.unwrap().clone().into_bytes().as_slice()).unwrap();
+            },
+            HTTPMethod::PUT => {
+                let up_buf = body.unwrap().as_bytes();
+                handle.upload(true).unwrap();
+                handle.in_filesize(up_buf.len() as u64).unwrap();
+            },
+            _ => ()
+        }
+
+        let mut transfer = handle.transfer();
+        transfer.write_function(|data| {
+            down_buf.extend_from_slice(data);
+            Ok(data.len())
+        }).unwrap();
+        transfer.read_function(|into| {
+            let up_buf = body.unwrap().as_bytes();
+            let len = up_buf.len() as usize;
+            into[0..len].clone_from_slice(up_buf);
+            Ok(len)
+        }).unwrap();
+        transfer.perform()?;
+        drop(transfer);
+
+        let res = handle.response_code()?;
+
+        Ok((res, down_buf))
+    }
+}
+
 mod awair {
     use serde::{Deserialize, Serialize};
     use curl::easy::{Easy, List};
@@ -65,7 +120,7 @@ mod awair {
 
 mod daikin {
     use serde::{Deserialize, Serialize};
-    use curl::easy::{Easy, List};
+    use super::webapi;
     
     pub struct SkyPort {
         email: String,
@@ -127,61 +182,10 @@ mod daikin {
         }
     }
 
-    enum HTTPMethod {
-        GET,
-        POST,
-        PUT,
-    }
-
-    fn access_webapi(url: &str, method: HTTPMethod, token: Option<&String>, body: Option<&String>) -> Result<(u32, Vec<u8>), curl::Error> {
-        let mut handle = Easy::new();
-        let mut down_buf: Vec<u8> = Vec::new();
-        handle.url(url).unwrap();
-        let mut list = List::new();
-        list.append("Accept: application/json").unwrap();
-        list.append("Content-Type: application/json").unwrap();
-        if let Some(token) = token {
-            let auth = format!("Authorization: Bearer {}", token);
-            list.append(&auth).unwrap();
-        }
-        handle.http_headers(list).unwrap();
-
-        match method {
-            HTTPMethod::POST => {
-                handle.post(true).unwrap();
-                handle.post_fields_copy(body.unwrap().clone().into_bytes().as_slice()).unwrap();
-            },
-            HTTPMethod::PUT => {
-                let up_buf = body.unwrap().as_bytes();
-                handle.upload(true).unwrap();
-                handle.in_filesize(up_buf.len() as u64).unwrap();
-            },
-            _ => ()
-        }
-
-        let mut transfer = handle.transfer();
-        transfer.write_function(|data| {
-            down_buf.extend_from_slice(data);
-            Ok(data.len())
-        }).unwrap();
-        transfer.read_function(|into| {
-            let up_buf = body.unwrap().as_bytes();
-            let len = up_buf.len() as usize;
-            into[0..len].clone_from_slice(up_buf);
-            Ok(len)
-        }).unwrap();
-        transfer.perform()?;
-        drop(transfer);
-
-        let res = handle.response_code()?;
-
-        Ok((res, down_buf))
-    }
-
     fn login(email: &String, password: &String) -> Result<SkyPort, Error> {
         let body = format!("{{ \"email\": \"{}\", \"password\": \"{}\"}}", *email, *password);
         let url = "https://api.daikinskyport.com/users/auth/login";
-        let (res, buf) = match access_webapi(url, HTTPMethod::POST, None, Some(&body)) {
+        let (res, buf) = match webapi::access(url, webapi::HTTPMethod::POST, None, Some(&body)) {
             Ok(t) => t,
             Err(e) => {
                 return Err(Error::HTTPError(e));
@@ -213,7 +217,7 @@ mod daikin {
     impl SkyPort {
         pub fn new(email: &String, password: &String) -> Result<SkyPort, Error> {
             let mut skyport = login(email, password)?;
-            let (res, buf) = match access_webapi("https://api.daikinskyport.com/devices", HTTPMethod::GET, Some(&skyport.access_token), None) {
+            let (res, buf) = match webapi::access("https://api.daikinskyport.com/devices", webapi::HTTPMethod::GET, Some(&skyport.access_token), None) {
                 Ok(t) => t,
                 Err(e) => {
                     return Err(Error::HTTPError(e));
@@ -239,7 +243,7 @@ mod daikin {
         fn refresh_token(self: &mut SkyPort) -> Result<(), Error> {
             let url = "https://api.daikinskyport.com/users/auth/token";
             let body = format!("{{ \"email\": \"{}\", \"refreshToken\": \"{}\"}}", self.email, self.refresh_token);
-            let (res, buf) = match access_webapi(url, HTTPMethod::POST, None, Some(&body)) {
+            let (res, buf) = match webapi::access(url, webapi::HTTPMethod::POST, None, Some(&body)) {
                 Ok(t) => t,
                 Err(e) => {
                     return Err(Error::HTTPError(e));
@@ -255,7 +259,7 @@ mod daikin {
 
         fn do_sync(self: &mut SkyPort) -> Result<(), Error> {
             let url = format!("https://api.daikinskyport.com/deviceData/{}", self.device_id);
-            let (res, buf) = match access_webapi(&url, HTTPMethod::GET, Some(&self.access_token), None) {
+            let (res, buf) = match webapi::access(&url, webapi::HTTPMethod::GET, Some(&self.access_token), None) {
                 Ok(t) => t,
                 Err(e) => {
                     return Err(Error::HTTPError(e));
@@ -301,7 +305,7 @@ mod daikin {
             let url = format!("https://api.daikinskyport.com/deviceData/{}", self.device_id);
             let body = format!("{{\"hspHome\": {:.1}, \"cspHome\": {:.1}, \"schedOverride\": 1, \"schedOverrideDuration\": {}}}",
                 heat, cool, duration);
-            let (res, buf) = match access_webapi(&url, HTTPMethod::PUT, Some(&self.access_token), Some(&body)) {
+            let (res, buf) = match webapi::access(&url, webapi::HTTPMethod::PUT, Some(&self.access_token), Some(&body)) {
                 Ok(t) => t,
                 Err(e) => {
                     return Err(Error::HTTPError(e));
