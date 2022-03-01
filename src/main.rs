@@ -59,6 +59,7 @@ mod webapi {
 mod awair {
     use serde::{Deserialize, Serialize};
     use curl::easy::{Easy, List};
+    use super::webapi;
 
     #[derive(Debug, Deserialize, Serialize)]
     struct SensorData {
@@ -95,22 +96,15 @@ mod awair {
     }
 
     pub fn read_average_temp(devtype: &str, devid: u64, token: &str) -> Result<f64, curl::Error> {
-        let mut handle = Easy::new();
-        let mut buf = Vec::new();
         let url = format!("https://developer-apis.awair.is/v1/users/self/devices/{}/{}/air-data/15-min-avg?limit=4", devtype, devid);
-        handle.url(&url).unwrap();
-        let mut list = List::new();
-        let auth_hdr = format!("authorization: Bearer {}", token);
-        list.append(&auth_hdr).unwrap();
-        handle.http_headers(list).unwrap();
-    
-        let mut transfer = handle.transfer();
-        transfer.write_function(|data| {
-            buf.extend_from_slice(data);
-            Ok(data.len())
-        }).unwrap();
-        transfer.perform().unwrap();
-        drop(transfer);
+        let (res, buf) = match webapi::access(&url, webapi::HTTPMethod::GET, Some(&token.to_string()), None) {
+            Ok(r) => r,
+            Err(e) => {
+                return Err(e);
+            }
+        };
+
+        assert_eq!(res, 200);
     
         let data: Data = serde_json::from_slice(&buf[..]).unwrap();
     
