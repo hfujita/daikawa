@@ -853,7 +853,7 @@ fn main() {
                 let csp = skyport.get_cool_setpoint();
                 let (new_csp, new_hsp) = calc_new_setpoints(hsp, csp, atemp, dtemp, config.target_temp);
 
-                println!("Target temp={}, Awair temp={}, Daikin temp={}, Daikin cur sp=({}, {}), new Daikin sp=({:.1}, {:.1})",
+                println!("Target temp={}, Awair temp={:.1}, Daikin temp={:.1}, Daikin cur sp=({}, {}), new Daikin sp=({:.1}, {:.1})",
                     config.target_temp, atemp, dtemp, hsp, csp, new_hsp, new_csp);
 
                 if let Err(e) = skyport.set_setpoints(new_hsp, new_csp, loop_interval_min) {
