@@ -1,6 +1,31 @@
 use serde::{Deserialize, Serialize};
 use chrono::{Local, NaiveTime, Duration};
 
+
+#[derive(Debug, Deserialize, Serialize)]
+struct APIError {
+    message: String,
+}
+
+#[derive(Debug)]
+pub enum Error {
+    HTTPError(curl::Error),
+    APIError(u32, String),
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::APIError(_, m) => {
+                return write!(f, "{}", m);
+            },
+            Error::HTTPError(e) => {
+                return write!(f, "{}", e.description());
+            },
+        };
+    }
+}
+
 mod webapi {
     use curl::easy::{Easy, List};
 
@@ -59,6 +84,8 @@ mod webapi {
 mod awair {
     use serde::{Deserialize, Serialize};
     use super::webapi;
+    use super::Error;
+    use super::APIError;
 
     #[derive(Debug, Deserialize, Serialize)]
     struct SensorData {
@@ -114,7 +141,9 @@ mod awair {
 mod daikin {
     use serde::{Deserialize, Serialize};
     use super::webapi;
-    
+    use super::Error;
+    use super::APIError;
+
     pub struct SkyPort {
         email: String,
         access_token: String,
@@ -149,30 +178,6 @@ mod daikin {
         hsp_home: f64,
         #[serde(rename = "tempIndoor")]
         temp_indoor: f64,
-    }
-
-    #[derive(Debug, Deserialize, Serialize)]
-    struct APIError {
-        message: String,
-    }
-
-    #[derive(Debug)]
-    pub enum Error {
-        HTTPError(curl::Error),
-        APIError(u32, String),
-    }
-
-    impl std::fmt::Display for Error {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            match self {
-                Error::APIError(_, m) => {
-                    return write!(f, "{}", m);
-                },
-                Error::HTTPError(e) => {
-                    return write!(f, "{}", e.description());
-                },
-            };
-        }
     }
 
     fn login(email: &String, password: &String) -> Result<SkyPort, Error> {
