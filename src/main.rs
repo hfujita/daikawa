@@ -88,6 +88,24 @@ mod awair {
     use super::APIError;
 
     #[derive(Debug, Deserialize, Serialize)]
+    struct Device {
+        name: String,
+        #[serde(rename = "deviceType")]
+        device_type: String,
+        #[serde(rename = "deviceId")]
+        device_id: u64,
+        #[serde(rename = "roomType")]
+        room_type: String,
+        #[serde(rename = "locationName")]
+        location_name: String,
+    }
+
+    #[derive(Debug, Deserialize, Serialize)]
+    struct Devices {
+        devices: Vec<Device>,
+    }
+
+    #[derive(Debug, Deserialize, Serialize)]
     struct SensorData {
         comp: String,
         value: f64,
@@ -135,6 +153,69 @@ mod awair {
         let data: Data = serde_json::from_slice(&buf[..]).unwrap();
     
         return Ok(average_temp(&data));
+    }
+
+    fn get_devices(token: &String) -> Result<Vec<Device>, Error> {
+        let url = "https://developer-apis.awair.is/v1/users/self/devices";
+        let (res, buf) = match webapi::access(&url, webapi::HTTPMethod::GET, Some(token), None) {
+            Ok(r) => r,
+            Err(e) => {
+                return Err(Error::HTTPError(e));
+            }
+        };
+
+        if res != 200 {
+            let r: serde_json::Result<APIError> = serde_json::from_slice(&buf);
+            match r {
+                Ok(ae) => {
+                    return Err(Error::APIError(res, ae.message));
+                },
+                _ => {
+                    return Err(Error::APIError(res, String::from_utf8(buf).unwrap()));
+                }
+            }
+        }
+
+        let result: Devices = serde_json::from_slice(&buf).unwrap();
+
+        if result.devices.len() == 0 {
+            return Err(Error::APIError(1404, "No device defined".to_string()));
+        }
+
+        Ok(result.devices)
+    }
+
+    #[test]
+    fn test_get_devices() {
+        let token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiRFVNTVktSE9CQllJU1QifQ.hzjhIpGljqCZ8vCrOr89POy_ENDPYQXsnzGslP01krI";
+        let _ = get_devices(&token.to_string());
+    }
+
+    pub struct Awair {
+        token: String,
+        device_type: String,
+        device_id: u64,
+    }
+
+    impl Awair {
+        fn new(token: &String) -> Result<Awair, Error> {
+            let devices = get_devices(token)?;
+            println!("Selecting Awair device: name=\"{}\", deviceType=\"{}\", deviceId={}, roomType=\"{}\", locationName=\"{}\"",
+                devices[0].name, devices[0].device_type, devices[0].device_id, devices[0].room_type, devices[0].location_name);
+            let awair = Awair {
+                token: token.clone(),
+                device_type: devices[0].device_type.clone(),
+                device_id: devices[0].device_id,
+            };
+            Ok(awair)
+        }
+    }
+
+    #[cfg(test)]
+    #[test]
+    fn test_new() {
+        let token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiRFVNTVktSE9CQllJU1QifQ.hzjhIpGljqCZ8vCrOr89POy_ENDPYQXsnzGslP01krI";
+        let _ = Awair::new(&token.to_string()).unwrap();
     }
 }
 
