@@ -171,7 +171,7 @@ mod awair {
                     return Err(Error::APIError(res, ae.message));
                 },
                 _ => {
-                    return Err(Error::APIError(res, String::from_utf8(buf).unwrap()));
+                    return Err(Error::APIError(res, String::from_utf8(buf).unwrap_or_default()));
                 }
             }
         }
