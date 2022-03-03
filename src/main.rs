@@ -198,7 +198,7 @@ mod awair {
     }
 
     impl Awair {
-        fn new(token: &String) -> Result<Awair, Error> {
+        pub fn new(token: &String) -> Result<Awair, Error> {
             let devices = get_devices(token)?;
             println!("Selecting Awair device: name=\"{}\", deviceType=\"{}\", deviceId={}, roomType=\"{}\", locationName=\"{}\"",
                 devices[0].name, devices[0].device_type, devices[0].device_id, devices[0].room_type, devices[0].location_name);
