@@ -209,6 +209,24 @@ mod awair {
             };
             Ok(awair)
         }
+
+        pub fn get_average_temp(&self) -> Result<f64, Error> {
+            let url = format!("https://developer-apis.awair.is/v1/users/self/devices/{}/{}/air-data/15-min-avg?limit=4", self.device_type, self.device_id);
+            let (res, buf) = match webapi::access(&url, webapi::HTTPMethod::GET, Some(&self.token), None) {
+                Ok(r) => r,
+                Err(e) => {
+                    return Err(Error::HTTPError(e));
+                }
+            };
+
+            if res != 200 {
+                return Err(Error::APIError(res, String::from_utf8(buf).unwrap_or_default()));
+            }
+
+            let data: Data = serde_json::from_slice(&buf[..]).unwrap();
+
+            return Ok(average_temp(&data));
+        }
     }
 
     #[cfg(test)]
@@ -823,6 +841,14 @@ fn main() {
     let range = parse_time_range(&config.control_start, &config.control_end);
     let mut controlling = false;
 
+    let awair = match awair::Awair::new(&config.awair_token) {
+        Ok(a) => a,
+        Err(e) => {
+            eprintln!("Failed to create Awair object: {}", e);
+            std::process::exit(1);
+        }
+    };
+
     let mut skyport = match daikin::SkyPort::new(&config.daikin_email, &config.daikin_password) {
         Ok(s) => s,
         Err(e) => {
@@ -847,7 +873,7 @@ fn main() {
                 eprintln!("Daikin Skyport sync failed: {}", e);
             } else {
                 /* TODO: handle error */
-                let atemp = awair::read_average_temp(&config.awair_device_type, config.awair_device_id, &config.awair_token).unwrap();
+                let atemp = awair.get_average_temp().unwrap();
                 let dtemp = skyport.get_temp();
                 let hsp = skyport.get_heat_setpoint();
                 let csp = skyport.get_cool_setpoint();
