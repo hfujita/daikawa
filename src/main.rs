@@ -140,7 +140,7 @@ mod awair {
     }
 
     pub fn read_average_temp(devtype: &str, devid: u64, token: &str) -> Result<f64, curl::Error> {
-        let url = format!("https://developer-apis.awair.is/v1/users/self/devices/{}/{}/air-data/15-min-avg?limit=4", devtype, devid);
+        let url = format!("https://developer-apis.awair.is/v1/users/self/devices/{}/{}/air-data/15-min-avg?limit=2", devtype, devid);
         let (res, buf) = match webapi::access(&url, webapi::HTTPMethod::GET, Some(&token.to_string()), None) {
             Ok(r) => r,
             Err(e) => {
@@ -835,7 +835,7 @@ fn main() {
             std::process::exit(1);
         }
     };
-    let loop_interval_min = 60;
+    let loop_interval_min = 30;
 
     let range = parse_time_range(&config.control_start, &config.control_end);
     let mut controlling = false;
