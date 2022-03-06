@@ -398,7 +398,6 @@ mod daikin {
         }
 
         fn do_set_setpoints(&self, heat: f64, cool: f64, duration: u32) -> Result<(), Error> {
-            println!("Setting setpoints: heat={:.1}, cool={:.1}", heat, cool);
             let url = format!("https://api.daikinskyport.com/deviceData/{}", self.device_id);
             let body = format!("{{\"hspHome\": {:.1}, \"cspHome\": {:.1}, \"schedOverride\": 1, \"schedOverrideDuration\": {}}}",
                 heat, cool, duration);
