@@ -811,8 +811,13 @@ fn do_control(awair: &awair::Awair, skyport: &mut daikin::SkyPort, config: &Conf
     if let Err(e) = skyport.sync() {
         eprintln!("Daikin Skyport sync failed: {}", e);
     } else {
-        /* TODO: handle error */
-        let atemp = awair.get_average_temp().unwrap();
+        let atemp = match awair.get_average_temp() {
+            Ok(t) => t,
+            Err(e) => {
+                eprintln!("Failed to obtain Awair readings: {}, skipping control", e);
+                return;
+            }
+        };
         let dtemp = skyport.get_temp();
         let hsp = skyport.get_heat_setpoint();
         let csp = skyport.get_cool_setpoint();
