@@ -810,25 +810,26 @@ fn do_control(awair: &awair::Awair, skyport: &mut daikin::SkyPort, config: &Conf
     /* control Daikin */
     if let Err(e) = skyport.sync() {
         eprintln!("Daikin Skyport sync failed: {}", e);
-    } else {
-        let atemp = match awair.get_average_temp() {
-            Ok(t) => t,
-            Err(e) => {
-                eprintln!("Failed to obtain Awair readings: {}, skipping control", e);
-                return;
-            }
-        };
-        let dtemp = skyport.get_temp();
-        let hsp = skyport.get_heat_setpoint();
-        let csp = skyport.get_cool_setpoint();
-        let (new_csp, new_hsp) = calc_new_setpoints(hsp, csp, atemp, dtemp, config.target_temp);
+        return;
+    }
 
-        println!("Target temp={}, Awair temp={:.1}, Daikin temp={:.1}, Daikin cur sp=({}, {}), new Daikin sp=({:.1}, {:.1})",
-            config.target_temp, atemp, dtemp, hsp, csp, new_hsp, new_csp);
-
-        if let Err(e) = skyport.set_setpoints(new_hsp, new_csp, loop_interval_min) {
-            eprintln!("Failed to set setpoints: {}", e);
+    let atemp = match awair.get_average_temp() {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("Failed to obtain Awair readings: {}, skipping control", e);
+            return;
         }
+    };
+    let dtemp = skyport.get_temp();
+    let hsp = skyport.get_heat_setpoint();
+    let csp = skyport.get_cool_setpoint();
+    let (new_csp, new_hsp) = calc_new_setpoints(hsp, csp, atemp, dtemp, config.target_temp);
+
+    println!("Target temp={}, Awair temp={:.1}, Daikin temp={:.1}, Daikin cur sp=({}, {}), new Daikin sp=({:.1}, {:.1})",
+        config.target_temp, atemp, dtemp, hsp, csp, new_hsp, new_csp);
+
+    if let Err(e) = skyport.set_setpoints(new_hsp, new_csp, loop_interval_min) {
+        eprintln!("Failed to set setpoints: {}", e);
     }
 }
 
