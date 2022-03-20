@@ -806,6 +806,27 @@ fn calc_new_setpoints(hsp: f64, csp: f64, atemp: f64, dtemp: f64, target: f64) -
     }
 }
 
+fn do_control(awair: &awair::Awair, skyport: &mut daikin::SkyPort, config: &Config, loop_interval_min: u32) {
+    /* control Daikin */
+    if let Err(e) = skyport.sync() {
+        eprintln!("Daikin Skyport sync failed: {}", e);
+    } else {
+        /* TODO: handle error */
+        let atemp = awair.get_average_temp().unwrap();
+        let dtemp = skyport.get_temp();
+        let hsp = skyport.get_heat_setpoint();
+        let csp = skyport.get_cool_setpoint();
+        let (new_csp, new_hsp) = calc_new_setpoints(hsp, csp, atemp, dtemp, config.target_temp);
+
+        println!("Target temp={}, Awair temp={:.1}, Daikin temp={:.1}, Daikin cur sp=({}, {}), new Daikin sp=({:.1}, {:.1})",
+            config.target_temp, atemp, dtemp, hsp, csp, new_hsp, new_csp);
+
+        if let Err(e) = skyport.set_setpoints(new_hsp, new_csp, loop_interval_min) {
+            eprintln!("Failed to set setpoints: {}", e);
+        }
+    }
+}
+
 fn main() {
     let config = match read_config("config.json") {
         Ok(c) => c,
@@ -846,24 +867,7 @@ fn main() {
         }
 
         if controlling {
-            /* control Daikin */
-            if let Err(e) = skyport.sync() {
-                eprintln!("Daikin Skyport sync failed: {}", e);
-            } else {
-                /* TODO: handle error */
-                let atemp = awair.get_average_temp().unwrap();
-                let dtemp = skyport.get_temp();
-                let hsp = skyport.get_heat_setpoint();
-                let csp = skyport.get_cool_setpoint();
-                let (new_csp, new_hsp) = calc_new_setpoints(hsp, csp, atemp, dtemp, config.target_temp);
-
-                println!("Target temp={}, Awair temp={:.1}, Daikin temp={:.1}, Daikin cur sp=({}, {}), new Daikin sp=({:.1}, {:.1})",
-                    config.target_temp, atemp, dtemp, hsp, csp, new_hsp, new_csp);
-
-                if let Err(e) = skyport.set_setpoints(new_hsp, new_csp, loop_interval_min) {
-                    eprintln!("Failed to set setpoints: {}", e);
-                }
-            }
+            do_control(&awair, &mut skyport, &config, loop_interval_min);
         }
 
         let sleep_sec = std::cmp::min(next, loop_interval_min as i64 * 60);
