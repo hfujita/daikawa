@@ -139,20 +139,6 @@ mod awair {
         return sum / (data.data.len() as f64);
     }
 
-    pub fn read_average_temp(devtype: &str, devid: u64, token: &str) -> Result<f64, curl::Error> {
-        let url = format!("https://developer-apis.awair.is/v1/users/self/devices/{}/{}/air-data/15-min-avg?limit=2", devtype, devid);
-        let (res, buf) = match webapi::access(&url, webapi::HTTPMethod::GET, Some(&token.to_string()), None) {
-            Ok(r) => r,
-            Err(e) => {
-                return Err(e);
-            }
-        };
-
-        assert_eq!(res, 200);
-    
-        let data: Data = serde_json::from_slice(&buf[..]).unwrap();
-    
-        return Ok(average_temp(&data));
     }
 
     fn get_devices(token: &String) -> Result<Vec<Device>, Error> {
@@ -541,13 +527,6 @@ mod test {
         assert!(matches!(range, TimeRange::Contiguous {..}));
         assert_eq!(range.contains(&NaiveTime::parse_from_str("06:00", "%R").unwrap()), true);
         assert_eq!(range.contains(&NaiveTime::parse_from_str("23:55", "%R").unwrap()), false);
-    }
-
-    #[test]
-    fn curl() {
-        let token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiRFVNTVktSE9CQllJU1QifQ.hzjhIpGljqCZ8vCrOr89POy_ENDPYQXsnzGslP01krI";
-        let temp = awair::read_average_temp("awair", 0, &token).unwrap();
-        assert!((temp - 69.45).abs() < 0.01);
     }
 
     #[test]
