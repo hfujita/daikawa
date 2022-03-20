@@ -13,6 +13,9 @@ pub enum Error {
     APIError(u32, String),
 }
 
+/* error codes - must be >= 1000 to distinguish from HTTP status code */
+const ERROR_STALE_DATA: u32 = 1000;
+
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -86,6 +89,8 @@ mod awair {
     use super::webapi;
     use super::Error;
     use super::APIError;
+    use chrono::{Local, TimeZone};
+    use super::*;
 
     #[derive(Debug, Deserialize, Serialize)]
     struct Device {
@@ -139,6 +144,9 @@ mod awair {
         return sum / (data.data.len() as f64);
     }
 
+    fn get_latest_timestamp(data: &Data) -> chrono::DateTime<chrono::Local> {
+        let uts = chrono::DateTime::parse_from_rfc3339(&data.data[0].timestamp).unwrap();
+        return uts.with_timezone(&Local::now().timezone());
     }
 
     fn get_devices(token: &String) -> Result<Vec<Device>, Error> {
@@ -210,7 +218,9 @@ mod awair {
             }
 
             let data: Data = serde_json::from_slice(&buf[..]).unwrap();
-
+            if (Local::now() - get_latest_timestamp(&data)).num_minutes() > 15 {
+                return Err(Error::APIError(ERROR_STALE_DATA, "Stale data".to_string()));
+            }
             return Ok(average_temp(&data));
         }
     }
