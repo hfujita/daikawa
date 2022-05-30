@@ -447,7 +447,8 @@ pub struct Config {
     awair_device_id: u64,
     #[serde(rename = "awair.token")]
     awair_token: String,
-    target_temp: f64,
+    target_temp_heat: f64,
+    target_temp_cool: f64,
     control_start: String,
     control_end: String,
     #[serde(rename = "daikin.email")]
@@ -751,7 +752,8 @@ mod test {
             "awair.deviceType": "awair",
             "awair.deviceId": 0,
             "awair.token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiRFVNTVktSE9CQllJU1QifQ.hzjhIpGljqCZ8vCrOr89POy_ENDPYQXsnzGslP01krI",
-            "target_temp": 23.5,
+            "target_temp_heat": 23.5,
+            "target_temp_cool": 26.0,
             "control_start": "21:00",
             "control_end": "07:00",
             "daikin.email": "daikin@example.com",
@@ -761,7 +763,7 @@ mod test {
         let config: Config = serde_json::from_str(&config_json).unwrap();
         assert_eq!(config.awair_device_id, 0);
         assert_eq!(config.awair_device_type, "awair");
-        assert!((config.target_temp - 23.5).abs() < 0.01);
+        assert!((config.target_temp_heat - 23.5).abs() < 0.01);
     }
 
     #[test]
@@ -776,13 +778,17 @@ mod test {
 
     #[test]
     fn setpoint_calc() {
-        let (c, h) = calc_new_setpoints(21.0, 26.0, 23.5, 21.0, 23.5);
-        assert!((c - 26.0).abs() < 0.01);
+        let (h, c) = calc_new_setpoints(23.5, 21.0, 23.5, 26.0);
+        assert!((c - 23.5).abs() < 0.01);
         assert!((h - 21.0).abs() < 0.01);
 
-        let (c, h) = calc_new_setpoints(21.0, 26.0, 24.5, 21.5, 23.5);
-        assert!((c - 26.0).abs() < 0.01);
+        let (h, c) = calc_new_setpoints(24.5, 21.5, 23.5, 26.0);
+        assert!((c - 23.0).abs() < 0.01);
         assert!((h - 20.5).abs() < 0.01);
+
+        let (h, c) = calc_new_setpoints(27.0, 23.0, 23.5, 26.0);
+        assert!((c - 22.0).abs() < 0.01);
+        assert!((h - 19.5).abs() < 0.01);
     }
 }
 
@@ -800,20 +806,20 @@ fn read_config(config_fn: &str) -> Result<Config, String> {
             return Err(format!("Failed to parse {}: {}", config_fn, e.to_string()));
         }
     };
+    if config.target_temp_heat > config.target_temp_cool {
+        return Err("target_temp_heat must be lower than or equal to target_temp_cool".to_owned());
+    }
     Ok(config)
 }
 
 /**
  * returns (new_heat_setpoint, new_cool_setpoint)
  */
-fn calc_new_setpoints(hsp: f64, csp: f64, atemp: f64, dtemp: f64, target: f64) -> (f64, f64) {
+fn calc_new_setpoints(atemp: f64, dtemp: f64, target_heat: f64, target_cool: f64) -> (f64, f64) {
     let diff = atemp - dtemp;
-    let new_sp = target - diff;
-    if (new_sp - csp).abs() < (new_sp - hsp).abs() {
-        (hsp, new_sp)
-    } else {
-        (csp, new_sp)
-    }
+    let new_hsp = target_heat - diff;
+    let new_csp = target_cool - diff;
+    (new_hsp, new_csp)
 }
 
 fn do_control(awair: &awair::Awair, skyport: &mut daikin::SkyPort, config: &Config, loop_interval_min: u32) {
@@ -833,10 +839,10 @@ fn do_control(awair: &awair::Awair, skyport: &mut daikin::SkyPort, config: &Conf
     let dtemp = skyport.get_temp();
     let hsp = skyport.get_heat_setpoint();
     let csp = skyport.get_cool_setpoint();
-    let (new_csp, new_hsp) = calc_new_setpoints(hsp, csp, atemp, dtemp, config.target_temp);
+    let (new_hsp, new_csp) = calc_new_setpoints(atemp, dtemp, config.target_temp_heat, config.target_temp_cool);
 
-    println!("Target temp={}, Awair temp={:.1}, Daikin temp={:.1}, Daikin cur sp=({}, {}), new Daikin sp=({:.1}, {:.1})",
-        config.target_temp, atemp, dtemp, hsp, csp, new_hsp, new_csp);
+    println!("Target temp=({}, {}), Awair temp={:.1}, Daikin temp={:.1}, Daikin cur sp=({}, {}), new Daikin sp=({:.1}, {:.1})",
+        config.target_temp_heat, config.target_temp_cool, atemp, dtemp, hsp, csp, new_hsp, new_csp);
 
     if let Err(e) = skyport.set_setpoints(new_hsp, new_csp, loop_interval_min) {
         eprintln!("Failed to set setpoints: {}", e);
