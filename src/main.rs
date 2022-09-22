@@ -914,7 +914,7 @@ fn main() {
         }
 
         let sleep_sec = std::cmp::min(next, loop_interval_min as i64 * 60);
-        println!("{} sleeping for {} seconds ({} minutes until next transition)", now_t, sleep_sec, next / 60);
+        println!("sleeping for {} seconds ({} minutes until next state transition)", sleep_sec, next / 60);
         let dur = std::time::Duration::from_secs(sleep_sec.try_into().unwrap());
         std::thread::sleep(dur);
     }
