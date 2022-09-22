@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use chrono::{Local, NaiveTime, Duration};
-
+use getopts::Options;
 
 #[derive(Debug, Deserialize, Serialize)]
 struct APIError {
@@ -849,8 +849,35 @@ fn do_control(awair: &awair::Awair, skyport: &mut daikin::SkyPort, config: &Conf
     }
 }
 
+fn print_usage(program: &str, opts: Options) {
+    let brief = format!("Usage: {} [options]", program);
+    print!("{}", opts.usage(&brief));
+}
+
 fn main() {
-    let config = match read_config("config.json") {
+    let args: Vec<String> = std::env::args().collect();
+    let prog = &args[0];
+    let mut opts = Options::new();
+    opts.optopt("c", "config", "specify a configuration file (default: config.json)", "FILE");
+    opts.optflag("h", "help", "show this menu");
+    let matches = match opts.parse(&args[1..]) {
+        Ok(m) => m,
+        Err(f) => {
+            eprintln!("{}\n", f.to_string());
+            print_usage(prog, opts);
+            return;
+        }
+    };
+    if matches.opt_present("h") {
+        print_usage(prog, opts);
+        return;
+    }
+    let config_file = match matches.opt_str("c") {
+        Some(f) => f,
+        None => "config.json".to_string(),
+    };
+
+    let config = match read_config(&config_file) {
         Ok(c) => c,
         Err(s) => {
             eprintln!("{}", s);
