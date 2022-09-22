@@ -89,7 +89,7 @@ mod awair {
     use super::webapi;
     use super::Error;
     use super::APIError;
-    use chrono::{Local, TimeZone};
+    use chrono::Local;
     use super::*;
 
     #[derive(Debug, Deserialize, Serialize)]
