@@ -441,10 +441,6 @@ mod daikin {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
-    #[serde(rename = "awair.deviceType")]
-    awair_device_type: String,
-    #[serde(rename = "awair.deviceId")]
-    awair_device_id: u64,
     #[serde(rename = "awair.token")]
     awair_token: String,
     target_temp_heat: f64,
@@ -761,8 +757,6 @@ mod test {
         }
         "#;
         let config: Config = serde_json::from_str(&config_json).unwrap();
-        assert_eq!(config.awair_device_id, 0);
-        assert_eq!(config.awair_device_type, "awair");
         assert!((config.target_temp_heat - 23.5).abs() < 0.01);
     }
 
