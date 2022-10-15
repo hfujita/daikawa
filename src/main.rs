@@ -205,7 +205,7 @@ mod awair {
         }
 
         pub fn get_average_temp(&self) -> Result<f64, Error> {
-            let url = format!("https://developer-apis.awair.is/v1/users/self/devices/{}/{}/air-data/15-min-avg?limit=1", self.device_type, self.device_id);
+            let url = format!("https://developer-apis.awair.is/v1/users/self/devices/{}/{}/air-data/5-min-avg?limit=1", self.device_type, self.device_id);
             let (res, buf) = match webapi::access(&url, webapi::HTTPMethod::GET, Some(&self.token), None) {
                 Ok(r) => r,
                 Err(e) => {
