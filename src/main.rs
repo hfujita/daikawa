@@ -743,6 +743,16 @@ mod test {
     }
 
     #[test]
+    fn timestamp_parse() {
+        let ts = "2022-03-18T22:30:00.000Z";
+        let dt = chrono::DateTime::parse_from_rfc3339(ts).unwrap();
+        let ldt = dt.with_timezone(&Local::now().timezone());
+        let lnow = Local::now();
+        let diff = lnow - ldt;
+        println!("{}", diff.num_minutes());
+    }
+
+    #[test]
     fn config_parse() {
         let config_json = r#"
         {
