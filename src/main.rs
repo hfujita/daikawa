@@ -422,9 +422,10 @@ mod daikin {
         }
     }
 
+    #[ignore]
     #[test]
     fn login_failure_test() {
-        let mut res = SkyPort::new(&"crisp.fujita@gmail.com".to_owned(), &"hoge".to_owned());
+        let mut res = SkyPort::new(&"test@example.com".to_owned(), &"hoge".to_owned());
         assert!(res.is_err());
     }
 
