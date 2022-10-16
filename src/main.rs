@@ -816,18 +816,24 @@ fn calc_new_setpoints(atemp: f64, dtemp: f64, target_heat: f64, target_cool: f64
     (new_hsp, new_csp)
 }
 
-fn do_control(awair: &awair::Awair, skyport: &mut daikin::SkyPort, config: &Config, loop_interval_min: u32) {
+/**
+ * Implements the main control logic
+ * returns sleep interval until next execution (in minutes)
+ */
+fn do_control(awair: &awair::Awair, skyport: &mut daikin::SkyPort, config: &Config) -> u32 {
+    let default = 15;
+    let retry = 5;
     /* control Daikin */
     if let Err(e) = skyport.sync() {
         eprintln!("Daikin Skyport sync failed: {}", e);
-        return;
+        return retry;
     }
 
     let atemp = match awair.get_average_temp() {
         Ok(t) => t,
         Err(e) => {
             eprintln!("Failed to obtain Awair readings: {}, skipping control", e);
-            return;
+            return retry;
         }
     };
     let dtemp = skyport.get_temp();
@@ -838,9 +844,12 @@ fn do_control(awair: &awair::Awair, skyport: &mut daikin::SkyPort, config: &Conf
     println!("Target temp=({}, {}), Awair temp={:.1}, Daikin temp={:.1}, Daikin cur sp=({}, {}), new Daikin sp=({:.1}, {:.1})",
         config.target_temp_heat, config.target_temp_cool, atemp, dtemp, hsp, csp, new_hsp, new_csp);
 
-    if let Err(e) = skyport.set_setpoints(new_hsp, new_csp, loop_interval_min) {
+    if let Err(e) = skyport.set_setpoints(new_hsp, new_csp, default) {
         eprintln!("Failed to set setpoints: {}", e);
+        return retry;
     }
+
+    return default;
 }
 
 fn print_usage(program: &str, opts: Options) {
@@ -878,7 +887,6 @@ fn main() {
             std::process::exit(1);
         }
     };
-    let loop_interval_min = 30;
 
     let range = parse_time_range(&config.control_start, &config.control_end);
     let mut controlling = false;
@@ -909,11 +917,12 @@ fn main() {
             controlling = in_range;
         }
 
+        let mut interval = 24*60; /* sleep forever */
         if controlling {
-            do_control(&awair, &mut skyport, &config, loop_interval_min);
+            interval = do_control(&awair, &mut skyport, &config);
         }
 
-        let sleep_sec = std::cmp::min(next, loop_interval_min as i64 * 60);
+        let sleep_sec = std::cmp::min(next, interval as i64 * 60);
         println!("sleeping for {} seconds ({} minutes until next state transition)", sleep_sec, next / 60);
         let dur = std::time::Duration::from_secs(sleep_sec.try_into().unwrap());
         std::thread::sleep(dur);
