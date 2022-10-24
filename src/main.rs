@@ -274,6 +274,8 @@ mod daikin {
         hsp_home: f64,
         #[serde(rename = "tempIndoor")]
         temp_indoor: f64,
+        #[serde(rename = "geofencingAway")]
+        geofencing_away: bool,
     }
 
     fn login(email: &String, password: &String) -> Result<SkyPort, Error> {
