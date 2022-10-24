@@ -928,12 +928,13 @@ fn main() {
             controlling = in_range;
         }
 
-        let mut interval = 24*60; /* sleep forever */
-        if controlling {
-            interval = do_control(&awair, &mut skyport, &config);
-        }
+        let interval_min = if controlling {
+            do_control(&awair, &mut skyport, &config)
+        } else {
+            24*60 /* sleep forever */
+        };
 
-        let sleep_sec = std::cmp::min(next, interval as i64 * 60);
+        let sleep_sec = std::cmp::min(next, interval_min as i64 * 60);
         println!("sleeping for {} seconds ({} minutes until next state transition)", sleep_sec, next / 60);
         let dur = std::time::Duration::from_secs(sleep_sec.try_into().unwrap());
         std::thread::sleep(dur);
