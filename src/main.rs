@@ -454,7 +454,11 @@ pub struct Config {
     #[serde(rename = "daikin_email")]
     daikin_email: String,
     #[serde(rename = "daikin_password")]
-    daikin_password: String,    
+    daikin_password: String,
+    #[serde(skip)]
+    dry_run: bool,
+    #[serde(skip)]
+    oneshot: bool,
 }
 
 enum TimeRange {
@@ -863,6 +867,11 @@ fn do_control(awair: &awair::Awair, skyport: &mut daikin::SkyPort, config: &Conf
     println!("Target temp=({}, {}), Awair temp={:.1}, Daikin temp={:.1}, Daikin cur sp=({}, {}), new Daikin sp=({:.1}, {:.1})",
         config.target_temp_heat, config.target_temp_cool, atemp, dtemp, hsp, csp, new_hsp, new_csp);
 
+    if (config.dry_run) {
+        println!("--dry-run specified, skipping setpoint configuration");
+        return default;
+    }
+
     if let Err(e) = skyport.set_setpoints(new_hsp, new_csp, default) {
         eprintln!("Failed to set setpoints: {}", e);
         return retry;
@@ -882,6 +891,8 @@ fn main() {
     let mut opts = Options::new();
     opts.optopt("c", "config", "specify a configuration file (default: config.toml)", "FILE");
     opts.optflag("", "config-test", "read a configuration file and exit");
+    opts.optflag("", "dry-run", "read sensor values but do not change temperature settings");
+    opts.optflag("", "oneshot", "execute the control loop once and exit");
     opts.optflag("h", "help", "show this menu");
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => m,
@@ -900,7 +911,7 @@ fn main() {
         None => "config.toml".to_string(),
     };
 
-    let config = match read_config(&config_file) {
+    let mut config = match read_config(&config_file) {
         Ok(c) => c,
         Err(s) => {
             eprintln!("{}", s);
@@ -910,6 +921,12 @@ fn main() {
 
     if matches.opt_present("config-test") {
         return;
+    }
+    if matches.opt_present("dry-run") {
+        config.dry_run = true;
+    }
+    if matches.opt_present("oneshot") {
+        config.oneshot = true;
     }
 
     let range = parse_time_range(&config.control_start, &config.control_end);
@@ -946,6 +963,10 @@ fn main() {
         } else {
             24*60 /* sleep forever */
         };
+
+        if (config.oneshot) {
+            return;
+        }
 
         let sleep_sec = std::cmp::min(next, interval_min as i64 * 60);
         println!("sleeping for {} seconds ({} minutes until next state transition)", sleep_sec, next / 60);
