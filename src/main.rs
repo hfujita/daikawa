@@ -396,6 +396,10 @@ mod daikin {
             return self.device_data.csp_home;
         }
 
+        pub fn get_geofencing_away(self: &SkyPort) -> bool {
+            return self.device_data.geofencing_away;
+        }
+
         fn do_set_setpoints(&self, heat: f64, cool: f64, duration: u32) -> Result<(), Error> {
             let url = format!("https://api.daikinskyport.com/deviceData/{}", self.device_id);
             let body = format!("{{\"hspHome\": {:.1}, \"cspHome\": {:.1}, \"schedOverride\": 1, \"schedOverrideDuration\": {}}}",
