@@ -871,8 +871,8 @@ fn do_control(awair: &awair::Awair, skyport: &mut daikin::SkyPort, config: &Conf
     let csp = skyport.get_cool_setpoint();
     let (new_hsp, new_csp) = calc_new_setpoints(atemp, dtemp, config.target_temp_heat, config.target_temp_cool);
 
-    println!("Target temp=({}, {}), Awair temp={:.1}, Daikin temp={:.1}, Daikin cur sp=({}, {}), new Daikin sp=({:.1}, {:.1})",
-        config.target_temp_heat, config.target_temp_cool, atemp, dtemp, hsp, csp, new_hsp, new_csp);
+    println!("Target temp=({}, {}), Awair temp={:.1}, Daikin temp={:.1}, Daikin cur sp=({}, {}), new Daikin sp=({:.1}, {:.1}), away={}",
+        config.target_temp_heat, config.target_temp_cool, atemp, dtemp, hsp, csp, new_hsp, new_csp, skyport.get_geofencing_away());
 
     if config.dry_run {
         println!("--dry-run specified, skipping setpoint configuration");
