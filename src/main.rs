@@ -873,6 +873,7 @@ fn main() {
     let prog = &args[0];
     let mut opts = Options::new();
     opts.optopt("c", "config", "specify a configuration file (default: config.json)", "FILE");
+    opts.optflag("", "config-test", "read a configuration file and exit");
     opts.optflag("h", "help", "show this menu");
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => m,
@@ -898,6 +899,10 @@ fn main() {
             std::process::exit(1);
         }
     };
+
+    if matches.opt_present("config-test") {
+        return;
+    }
 
     let range = parse_time_range(&config.control_start, &config.control_end);
     let mut controlling = false;
