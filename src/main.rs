@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use chrono::{Local, NaiveTime, Duration};
 use getopts::Options;
+use std::io::{Read};
 
 #[derive(Debug, Deserialize, Serialize)]
 struct APIError {
@@ -442,15 +443,15 @@ mod daikin {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
-    #[serde(rename = "awair.token")]
+    #[serde(rename = "awair_token")]
     awair_token: String,
     target_temp_heat: f64,
     target_temp_cool: f64,
     control_start: String,
     control_end: String,
-    #[serde(rename = "daikin.email")]
+    #[serde(rename = "daikin_email")]
     daikin_email: String,
-    #[serde(rename = "daikin.password")]
+    #[serde(rename = "daikin_password")]
     daikin_password: String,    
 }
 
@@ -771,9 +772,10 @@ mod test {
         assert!((config.target_temp_heat - 23.5).abs() < 0.01);
     }
 
+    #[ignore]
     #[test]
     fn daikin_test() {
-        let config = read_config("config.json").unwrap();
+        let config = read_config("config.toml").unwrap();
         let mut daikin = daikin::SkyPort::new(&config.daikin_email, &config.daikin_password).unwrap();
         println!("temp={}", daikin.get_temp());
         daikin.sync().unwrap();
@@ -804,8 +806,12 @@ fn read_config(config_fn: &str) -> Result<Config, String> {
             return Err(format!("Failed to open {}: {}", config_fn, e.to_string()));
         }
     };
-    let buffered = std::io::BufReader::new(f);
-    let config: Config = match serde_json::from_reader(buffered) {
+    let mut config_str = String::new();
+    let mut buffered = std::io::BufReader::new(f);
+    if let Err(e) = buffered.read_to_string(&mut config_str) {
+        return Err(format!("Failed to read {}: {}", config_fn, e.to_string()));
+    }
+    let config: Config = match toml::from_str(&config_str) {
         Ok(c) => c,
         Err(e) => {
             return Err(format!("Failed to parse {}: {}", config_fn, e.to_string()));
@@ -872,7 +878,7 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     let prog = &args[0];
     let mut opts = Options::new();
-    opts.optopt("c", "config", "specify a configuration file (default: config.json)", "FILE");
+    opts.optopt("c", "config", "specify a configuration file (default: config.toml)", "FILE");
     opts.optflag("", "config-test", "read a configuration file and exit");
     opts.optflag("h", "help", "show this menu");
     let matches = match opts.parse(&args[1..]) {
@@ -889,7 +895,7 @@ fn main() {
     }
     let config_file = match matches.opt_str("c") {
         Some(f) => f,
-        None => "config.json".to_string(),
+        None => "config.toml".to_string(),
     };
 
     let config = match read_config(&config_file) {
