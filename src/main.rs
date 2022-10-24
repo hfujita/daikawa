@@ -846,6 +846,26 @@ fn calc_new_setpoints(atemp: f64, dtemp: f64, target_heat: f64, target_cool: f64
     (new_hsp, new_csp)
 }
 
+#[derive(Serialize)]
+struct TempLog {
+    target_temp_heat: f64,
+    target_temp_cool: f64,
+    awair_temp: f64,
+    daikin_temp: f64,
+    current_heat_setpoint: f64,
+    current_cool_setpoint: f64,
+    new_heat_setpoint: f64,
+    new_cool_setpoint: f64,
+    /** indicates if the new temperature settings are actually set to Daikin */
+    execute_control: bool,
+}
+
+fn print_log(log: &TempLog) {
+    if let Ok(str) = serde_json::to_string(log) {
+        println!("{}", str);
+    }
+}
+
 /**
  * Implements the main control logic
  * returns sleep interval until next execution (in minutes)
@@ -867,16 +887,24 @@ fn do_control(awair: &awair::Awair, skyport: &mut daikin::SkyPort, config: &Conf
         }
     };
     let dtemp = skyport.get_temp();
-    let hsp = skyport.get_heat_setpoint();
-    let csp = skyport.get_cool_setpoint();
     let (new_hsp, new_csp) = calc_new_setpoints(atemp, dtemp, config.target_temp_heat, config.target_temp_cool);
 
     let away = skyport.get_geofencing_away();
-    println!("Target temp=({}, {}), Awair temp={:.1}, Daikin temp={:.1}, Daikin cur sp=({}, {}), new Daikin sp=({:.1}, {:.1}), away={}",
-        config.target_temp_heat, config.target_temp_cool, atemp, dtemp, hsp, csp, new_hsp, new_csp, away);
+    let execute = !(away || config.dry_run);
+    let log = TempLog {
+        target_temp_heat: config.target_temp_heat,
+        target_temp_cool:  config.target_temp_cool,
+        awair_temp: atemp,
+        daikin_temp: dtemp,
+        current_heat_setpoint: skyport.get_heat_setpoint(),
+        current_cool_setpoint: skyport.get_cool_setpoint(),
+        new_heat_setpoint: new_hsp,
+        new_cool_setpoint: new_csp,
+        execute_control: execute,
+    };
+    print_log(&log);
 
-    if away || config.dry_run {
-        println!("skipping setpoint configuration");
+    if !execute {
         return default;
     }
 
