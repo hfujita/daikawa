@@ -870,7 +870,7 @@ fn do_control(awair: &awair::Awair, skyport: &mut daikin::SkyPort, config: &Conf
     println!("Target temp=({}, {}), Awair temp={:.1}, Daikin temp={:.1}, Daikin cur sp=({}, {}), new Daikin sp=({:.1}, {:.1})",
         config.target_temp_heat, config.target_temp_cool, atemp, dtemp, hsp, csp, new_hsp, new_csp);
 
-    if (config.dry_run) {
+    if config.dry_run {
         println!("--dry-run specified, skipping setpoint configuration");
         return default;
     }
@@ -967,7 +967,7 @@ fn main() {
             24*60 /* sleep forever */
         };
 
-        if (config.oneshot) {
+        if config.oneshot {
             return;
         }
 
