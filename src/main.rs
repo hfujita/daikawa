@@ -831,6 +831,9 @@ fn read_config(config_fn: &str) -> Result<Config, String> {
 
 /**
  * returns (new_heat_setpoint, new_cool_setpoint)
+ *
+ * atemp: Awair temperature
+ * dtemp: Daikin temperature
  */
 fn calc_new_setpoints(atemp: f64, dtemp: f64, target_heat: f64, target_cool: f64) -> (f64, f64) {
     let diff = atemp - dtemp;
