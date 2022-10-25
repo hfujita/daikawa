@@ -326,9 +326,9 @@ mod daikin {
                 return Err(Error::APIError(404, "No device found".to_string()));
             }
             for dev in devlist.iter() {
-                eprintln!("device id={}, name={}", dev.id, dev.name);
+                eprintln!("Daikin Skyport: found device id={}, name={}", dev.id, dev.name);
             }
-            eprintln!("Using \"{}\" as a Daikin device", devlist[0].name);
+            eprintln!("Daikin Skyport: Using \"{}\" as a Daikin device", devlist[0].name);
             skyport.device_id = devlist[0].id.clone();
 
             skyport.do_sync()?;
