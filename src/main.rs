@@ -292,21 +292,27 @@ mod daikin {
             }
         };
 
-        if res / 100 == 4 {
-            let err: APIError = serde_json::from_slice(&buf[..]).unwrap();
-            return Err(Error::APIError(res, err.message));
+        if res != 200 {
+            let message = if let Ok(err) = serde_json::from_slice::<APIError>(&buf[..]) {
+                err.message
+            } else {
+                "Unknown error".to_string()
+            };
+            return Err(Error::APIError(res, message));
         }
-        assert_eq!(res, 200);
 
-        let result: LoginResult = serde_json::from_slice(&buf[..]).unwrap();
+        let result: LoginResult = match serde_json::from_slice(&buf[..]) {
+            Ok(r) => r,
+            _ => return Err(Error::GenericError(format!("Could not parse login result: {:?}", buf)))
+        };
         if result.refresh_token.is_none() {
-            return Err(Error::APIError(404 /* TODO */, "Refresh token was not returned".to_string()))
+            return Err(Error::GenericError("Refresh token was not returned".to_string()))
         }
 
         let skyport = SkyPort {
             email: email.clone(),
             access_token: result.access_token,
-            refresh_token: result.refresh_token.unwrap(),
+            refresh_token: result.refresh_token.unwrap(), /* this is safe because we already checked is_none above */
             device_id: String::new(),
             device_data: DeviceData { ..Default::default() },
         };
@@ -324,8 +330,13 @@ mod daikin {
                 }
             };
 
-            assert_eq!(res, 200);
-            let devlist: Vec<DeviceEntry> = serde_json::from_slice(&buf[..]).unwrap();
+            if res != 200 {
+                return Err(Error::APIError(res, format!("Login failed: {}", res)));
+            }
+            let devlist: Vec<DeviceEntry> = match serde_json::from_slice(&buf[..]) {
+                Ok(l) => l,
+                Err(e) => return Err(Error::GenericError(e.to_string())),
+            };
             if devlist.len() == 0 {
                 return Err(Error::APIError(404, "No device found".to_string()));
             }
@@ -349,7 +360,10 @@ mod daikin {
                     return Err(Error::HTTPError(e));
                 }
             };
-            assert_eq!(res, 200);
+
+            if res != 200 {
+                return Err(Error::APIError(res, String::from_utf8(buf).unwrap_or_default()));
+            }
 
             let result: LoginResult = serde_json::from_slice(&buf[..]).unwrap();
             self.access_token = result.access_token;
@@ -367,10 +381,13 @@ mod daikin {
             };
 
             if res != 200 {
-                return Err(Error::APIError(res, String::from_utf8(buf).unwrap()));
+                return Err(Error::APIError(res, String::from_utf8(buf).unwrap_or_default()));
             }
 
-            let data: DeviceData = serde_json::from_slice(&buf[..]).unwrap();
+            let data: DeviceData = match serde_json::from_slice(&buf[..]) {
+                Ok(d) => d,
+                Err(e) => return Err(Error::GenericError(e.to_string())),
+            };
             self.device_data = data;
 
             return Ok(());
@@ -415,7 +432,7 @@ mod daikin {
                 }
             };
             if res != 200 {
-                return Err(Error::APIError(res, String::from_utf8(buf).unwrap()));
+                return Err(Error::APIError(res, String::from_utf8(buf).unwrap_or_default()));
             }
             return Ok(());
         }
