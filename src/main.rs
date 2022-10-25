@@ -12,6 +12,7 @@ struct APIError {
 pub enum Error {
     HTTPError(curl::Error),
     APIError(u32, String),
+    GenericError(String),
 }
 
 /* error codes - must be >= 1000 to distinguish from HTTP status code */
@@ -25,6 +26,9 @@ impl std::fmt::Display for Error {
             },
             Error::HTTPError(e) => {
                 return write!(f, "{}", e.description());
+            },
+            Error::GenericError(s) => {
+                return write!(f, "{}", s)
             },
         };
     }
