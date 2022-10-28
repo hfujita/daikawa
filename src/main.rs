@@ -46,25 +46,27 @@ mod webapi {
     pub fn access(url: &str, method: HTTPMethod, token: Option<&String>, body: Option<&String>) -> Result<(u32, Vec<u8>), curl::Error> {
         let mut handle = Easy::new();
         let mut down_buf: Vec<u8> = Vec::new();
-        handle.url(url).unwrap();
+        handle.url(url)?;
         let mut list = List::new();
-        list.append("Accept: application/json").unwrap();
-        list.append("Content-Type: application/json").unwrap();
+        list.append("Accept: application/json")?;
+        list.append("Content-Type: application/json")?;
         if let Some(token) = token {
             let auth = format!("Authorization: Bearer {}", token);
-            list.append(&auth).unwrap();
+            list.append(&auth)?;
         }
-        handle.http_headers(list).unwrap();
+        handle.http_headers(list)?;
 
         match method {
             HTTPMethod::POST => {
-                handle.post(true).unwrap();
-                handle.post_fields_copy(body.unwrap().clone().into_bytes().as_slice()).unwrap();
+                handle.post(true)?;
+                assert!(body.is_some()); /* POST must have a body to upload */
+                handle.post_fields_copy(body.unwrap().clone().into_bytes().as_slice())?;
             },
             HTTPMethod::PUT => {
+                assert!(body.is_some()); /* PUT must have a body to upload */
                 let up_buf = body.unwrap().as_bytes();
-                handle.upload(true).unwrap();
-                handle.in_filesize(up_buf.len() as u64).unwrap();
+                handle.upload(true)?;
+                handle.in_filesize(up_buf.len() as u64)?;
             },
             _ => ()
         }
@@ -73,13 +75,13 @@ mod webapi {
         transfer.write_function(|data| {
             down_buf.extend_from_slice(data);
             Ok(data.len())
-        }).unwrap();
+        })?;
         transfer.read_function(|into| {
             let up_buf = body.unwrap().as_bytes();
             let len = up_buf.len() as usize;
             into[0..len].clone_from_slice(up_buf);
             Ok(len)
-        }).unwrap();
+        })?;
         transfer.perform()?;
         drop(transfer);
 
