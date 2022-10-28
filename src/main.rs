@@ -209,8 +209,8 @@ mod awair {
             Ok(awair)
         }
 
-        pub fn get_average_temp(&self) -> Result<f64, Error> {
-            let url = format!("https://developer-apis.awair.is/v1/users/self/devices/{}/{}/air-data/5-min-avg?limit=1", self.device_type, self.device_id);
+        pub fn get_temp(&self) -> Result<f64, Error> {
+            let url = format!("https://developer-apis.awair.is/v1/users/self/devices/{}/{}/air-data/latest", self.device_type, self.device_id);
             let (res, buf) = match webapi::access(&url, webapi::HTTPMethod::GET, Some(&self.token), None) {
                 Ok(r) => r,
                 Err(e) => {
@@ -222,10 +222,15 @@ mod awair {
                 return Err(Error::APIError(res, String::from_utf8(buf).unwrap_or_default()));
             }
 
-            let data: Data = serde_json::from_slice(&buf[..]).unwrap();
+            let data: Data = match serde_json::from_slice(&buf[..]) {
+                Ok(d) => d,
+                /* `latest` could return empty json if the latest data is not available */
+                Err(e) => return Err(Error::GenericError(e.to_string())),
+            };
             if (Local::now() - get_latest_timestamp(&data)).num_minutes() > 15 {
                 return Err(Error::APIError(ERROR_STALE_DATA, "Stale data".to_string()));
             }
+            /* in case of `latest` we actually get average, but we call `average_temp` here just to traverse returned json */
             return Ok(average_temp(&data));
         }
     }
@@ -900,7 +905,7 @@ fn do_control(awair: &awair::Awair, skyport: &mut daikin::SkyPort, config: &Conf
         return retry;
     }
 
-    let atemp = match awair.get_average_temp() {
+    let atemp = match awair.get_temp() {
         Ok(t) => t,
         Err(e) => {
             eprintln!("Failed to obtain Awair readings: {}, skipping control", e);
