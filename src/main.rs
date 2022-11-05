@@ -287,6 +287,8 @@ mod daikin {
         temp_indoor: f64,
         #[serde(rename = "geofencingAway")]
         geofencing_away: bool,
+        #[serde(rename = "tempOutdoor")]
+        temp_outdoor: f64,
     }
 
     fn login(email: &String, password: &String) -> Result<SkyPort, Error> {
@@ -412,7 +414,7 @@ mod daikin {
             Ok(())
         }
 
-        pub fn get_temp(self: &SkyPort) -> f64 {
+        pub fn get_temp_indoor(self: &SkyPort) -> f64 {
             return self.device_data.temp_indoor;
         }
 
@@ -426,6 +428,10 @@ mod daikin {
 
         pub fn get_geofencing_away(self: &SkyPort) -> bool {
             return self.device_data.geofencing_away;
+        }
+
+        pub fn get_temp_outdoor(self: &SkyPort) -> f64 {
+            return self.device_data.temp_outdoor;
         }
 
         fn do_set_setpoints(&self, heat: f64, cool: f64, duration: u32) -> Result<(), Error> {
@@ -815,9 +821,9 @@ mod test {
     fn daikin_test() {
         let config = read_config("config.toml").unwrap();
         let mut daikin = daikin::SkyPort::new(&config.daikin_email, &config.daikin_password).unwrap();
-        println!("temp={}", daikin.get_temp());
+        println!("temp={}", daikin.get_temp_indoor());
         daikin.sync().unwrap();
-        println!("temp={}", daikin.get_temp());
+        println!("temp={}", daikin.get_temp_indoor());
         daikin.set_setpoints(21.0, 26.0, 1).unwrap();
     }
 
@@ -879,7 +885,8 @@ struct TempLog {
     target_temp_heat: f64,
     target_temp_cool: f64,
     awair_temp: f64,
-    daikin_temp: f64,
+    daikin_indoor_temp: f64,
+    daikin_outdoor_temp: f64,
     current_heat_setpoint: f64,
     current_cool_setpoint: f64,
     new_heat_setpoint: f64,
@@ -914,7 +921,7 @@ fn do_control(awair: &awair::Awair, skyport: &mut daikin::SkyPort, config: &Conf
             return retry;
         }
     };
-    let dtemp = skyport.get_temp();
+    let dtemp = skyport.get_temp_indoor();
     let (new_hsp, new_csp) = calc_new_setpoints(atemp, dtemp, config.target_temp_heat, config.target_temp_cool);
 
     let away = skyport.get_geofencing_away();
@@ -923,7 +930,8 @@ fn do_control(awair: &awair::Awair, skyport: &mut daikin::SkyPort, config: &Conf
         target_temp_heat: config.target_temp_heat,
         target_temp_cool:  config.target_temp_cool,
         awair_temp: atemp,
-        daikin_temp: dtemp,
+        daikin_indoor_temp: dtemp,
+        daikin_outdoor_temp: skyport.get_temp_outdoor(),
         current_heat_setpoint: skyport.get_heat_setpoint(),
         current_cool_setpoint: skyport.get_cool_setpoint(),
         new_heat_setpoint: new_hsp,
