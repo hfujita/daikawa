@@ -58,7 +58,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "daikinawair"
+name = "daikawa"
 version = "0.1.0"
 dependencies = [
  "chrono",
