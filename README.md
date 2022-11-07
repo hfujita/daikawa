@@ -4,6 +4,8 @@ This program controls [Daikin One+](https://www.daikinone.com/) thermostat, usin
 
 ## Prerequisite
 
+**Important: Right now only Celcius (C) is supported as temperature unit. I have no idea what will happen when Daikin One+'s unit is set to Fahrenheit (F).**
+
 You will need a computer system that keeps running 24/7 to host Daikawa. It must be connected to the Internet, but it does not have to be in the same subnet with Awair Element or Daikin One+. All the controls (temperature reading/setting) are done through API server provided by Daikin and Awair.
 
 Daikawa is a simple command-line tool written in Rust. It should work on most of platforms Rust supports, while I have only tested it on macOS/arm64 and Ubuntu 20.04/amd64. Rust compiler and standard toolchain around Rust (e.g. Cargo) are needed to build Daikawa.

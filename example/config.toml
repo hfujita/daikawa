@@ -2,6 +2,7 @@
 awair_token = 'awair-token'
 
 # Desired temperature for heating and cooling
+# As of now only Celcius (C) is supported. Daikin One+'s unit setting must also be in Celcius.
 target_temp_heat = 21.5
 target_temp_cool = 27.0
 
