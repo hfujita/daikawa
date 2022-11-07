@@ -1,0 +1,14 @@
+# Sample snippet for systemd service
+[Unit]
+Desciption=Daikin Contoller with Aware Sensor
+After=network.target
+
+[Service]
+Environment=TZ=America/Detroit
+Type=simple
+ExecStart=/usr/local/bin/daikawa -c /usr/local/etc/daikawa/config.toml
+Restart=always
+RestartSec=300
+
+[Install]
+WantedBy=multi-user.target

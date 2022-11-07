@@ -1,0 +1,15 @@
+# Your awair access token
+awair_token = 'awair-token'
+
+# Desired temperature for heating and cooling
+target_temp_heat = 21.5
+target_temp_cool = 27.0
+
+# Daikawa will adjust Daikin One+'s temperature only during this time window
+# Time is in local clock. Make sure to set desired TZ environment variable when running Daikawa.
+control_start = '21:00'
+control_end = '07:00'
+
+# Daikin One+'s credential
+daikin_email = 'daikawa@example.com'
+daikin_password = 'daikin-password'
