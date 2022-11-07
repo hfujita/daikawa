@@ -12,6 +12,8 @@ You will need two credentials:
 * E-mail address and password for Daikin One+. You should already have it if you set up Daikin One Home app in your phone.
 * [Awair access token](https://developer.getawair.com/console/access-token)
 
+Last but not least, your Awair Element must be in a place where airflow from Daikin's HVAC system reaches. Daikawa assumes there is a correlation between temperature around Daikin One+ and Awair Element.
+
 ## Install
 
 Simply copy a binary to a desired path. Or you could use
